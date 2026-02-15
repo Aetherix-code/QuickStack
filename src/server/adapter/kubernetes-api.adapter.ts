@@ -1,4 +1,5 @@
 import * as k8s from '@kubernetes/client-node';
+import path from 'node:path';
 
 class K3sApiAdapter {
 
@@ -25,7 +26,13 @@ class K3sApiAdapter {
         if (process.env.NODE_ENV === 'production') {
             kc.loadFromCluster();
         } else {
-            kc.loadFromFile('/workspace/kube-config.config');
+            const kubeConfigPath = process.env.KUBECONFIG ?? path.resolve(process.cwd(), 'kube-config.config');
+            try {
+                kc.loadFromFile(kubeConfigPath);
+            } catch (error) {
+                console.error('Failed to load kubeconfig:', error);
+                throw new Error(`Failed to load kubeconfig from ${kubeConfigPath}`);
+            }
         }
         return kc;
     }

@@ -83,6 +83,10 @@ if (process.env.NODE_ENV === 'production' && process.env.START_MODE === 'setup')
 } else if (process.env.NODE_ENV === 'production' && process.env.START_MODE === 'reset-password') {
     passwordChangeService.changeAdminPasswordAndPrintNewPassword();
 } else {
+    if (dev) {
+        setupQuickStack();
+    }
+
     initializeNextJs();
 }
 
