@@ -7,31 +7,48 @@ import { FormUtils } from "@/frontend/utils/form.utilts";
 import { AppSourceInfoInputModel, appSourceInfoInputZodModel } from "@/shared/model/app-source-info.model";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { saveGeneralAppSourceInfo } from "./actions";
+import { saveGeneralAppSourceInfo, getCurrentUserGitHubConnection } from "./actions";
 import { useFormState } from "react-dom";
 import { ServerActionResult } from "@/shared/model/server-action-error-return.model";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { App } from "@prisma/client";
 import { toast } from "sonner";
 import { AppExtendedModel } from "@/shared/model/app-extended.model";
+import GitHubRepoBrowser from "./github-repo-browser";
+import { Button } from "@/components/ui/button";
+import { Github } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function GeneralAppSource({ app, readonly }: {
     app: AppExtendedModel;
     readonly: boolean;
 }) {
+    const [hasGitHub, setHasGitHub] = useState(false);
+    const [showRepoBrowser, setShowRepoBrowser] = useState(false);
+    
     const form = useForm<AppSourceInfoInputModel>({
         resolver: zodResolver(appSourceInfoInputZodModel),
         defaultValues: {
             ...app,
-            sourceType: app.sourceType as 'GIT' | 'CONTAINER'
+            sourceType: app.sourceType as 'GIT' | 'CONTAINER',
+            buildMethod: app.buildMethod || 'DOCKERFILE'
         },
         disabled: readonly,
     });
 
     const [state, formAction] = useFormState((state: ServerActionResult<any, any>, payload: AppSourceInfoInputModel) => saveGeneralAppSourceInfo(state, payload, app.id), FormUtils.getInitialFormState<typeof appSourceInfoInputZodModel>());
+    
+    useEffect(() => {
+        getCurrentUserGitHubConnection().then(result => {
+            if (result.status === 'success') {
+                setHasGitHub(result.data.hasGitHub);
+            }
+        });
+    }, []);
+    
     useEffect(() => {
         if (state.status === 'success') {
             toast.success('Source Info Saved', {
@@ -42,6 +59,7 @@ export default function GeneralAppSource({ app, readonly }: {
     }, [state]);
 
     const sourceTypeField = form.watch();
+    const buildMethodField = form.watch('buildMethod');
     return <>
         <Card>
             <CardHeader>
@@ -83,9 +101,20 @@ export default function GeneralAppSource({ app, readonly }: {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Git Repo URL</FormLabel>
-                                            <FormControl>
-                                                <Input  {...field} value={field.value as string | number | readonly string[] | undefined} />
-                                            </FormControl>
+                                            <div className="flex gap-2">
+                                                <FormControl>
+                                                    <Input  {...field} value={field.value as string | number | readonly string[] | undefined} />
+                                                </FormControl>
+                                                {hasGitHub && !readonly && (
+                                                    <Button 
+                                                        type="button" 
+                                                        variant="outline"
+                                                        onClick={() => setShowRepoBrowser(true)}
+                                                    >
+                                                        <Github className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -133,6 +162,45 @@ export default function GeneralAppSource({ app, readonly }: {
                                             </FormItem>
                                         )}
                                     />
+                                </div>
+
+                                <FormField
+                                    control={form.control}
+                                    name="buildMethod"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-3">
+                                            <FormLabel>Build Method</FormLabel>
+                                            <FormControl>
+                                                <RadioGroup
+                                                    onValueChange={field.onChange}
+                                                    defaultValue={field.value || 'DOCKERFILE'}
+                                                    value={field.value || 'DOCKERFILE'}
+                                                    className="flex flex-col space-y-1"
+                                                >
+                                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                                        <FormControl>
+                                                            <RadioGroupItem value="DOCKERFILE" />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal">
+                                                            Dockerfile (use existing Dockerfile)
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                                        <FormControl>
+                                                            <RadioGroupItem value="NIXPACKS" />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal">
+                                                            Auto-detect (Nixpacks - automatically detect and build)
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                </RadioGroup>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                {buildMethodField === 'DOCKERFILE' && (
                                     <FormField
                                         control={form.control}
                                         name="dockerfilePath"
@@ -146,7 +214,7 @@ export default function GeneralAppSource({ app, readonly }: {
                                             </FormItem>
                                         )}
                                     />
-                                </div>
+                                )}
 
 
                             </TabsContent>
@@ -207,5 +275,14 @@ export default function GeneralAppSource({ app, readonly }: {
             </Form >
         </Card >
 
+        <GitHubRepoBrowser 
+            open={showRepoBrowser}
+            onOpenChange={setShowRepoBrowser}
+            onSelect={(repoUrl, branch) => {
+                form.setValue('gitUrl', repoUrl);
+                form.setValue('gitBranch', branch);
+                setShowRepoBrowser(false);
+            }}
+        />
     </>;
 }

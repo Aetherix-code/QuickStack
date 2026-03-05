@@ -16,6 +16,7 @@ export const AppModel = z.object({
   gitUsername: z.string().nullish(),
   gitToken: z.string().nullish(),
   dockerfilePath: z.string(),
+  buildMethod: z.string(),
   replicas: z.number().int(),
   envVars: z.string(),
   memoryReservation: z.number().int().nullish(),
@@ -26,6 +27,8 @@ export const AppModel = z.object({
   ingressNetworkPolicy: z.string(),
   egressNetworkPolicy: z.string(),
   useNetworkPolicy: z.boolean(),
+  nodeAffinityType: z.string(),
+  nodeAffinityLabelSelector: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })

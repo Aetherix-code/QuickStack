@@ -174,13 +174,13 @@ class RegistryService {
 
         const deploymentName = 'registry';
 
-        const masterNode = await clusterService.getMasterNode();
-        if (useLocalStorage && !masterNode) {
-            throw new ServiceException("Cannot deploy registry with local storage, because could not evaluate master node.");
+        const targetNode = await clusterService.getMasterNode();
+        if (useLocalStorage && !targetNode) {
+            throw new ServiceException("Cannot deploy registry with local storage: no cluster nodes available. Ensure at least one node is Ready.");
         }
-        const registryPlacement = useLocalStorage ? {
+        const registryPlacement = useLocalStorage && targetNode ? {
             nodeSelector: {
-                'kubernetes.io/hostname': masterNode.name,
+                'kubernetes.io/hostname': targetNode.name,
             }
         } : {};
 

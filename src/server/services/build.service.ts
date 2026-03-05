@@ -14,13 +14,35 @@ import stream from "stream";
 import { PathUtils } from "../utils/path.utils";
 import registryService, { BUILD_NAMESPACE } from "./registry.service";
 import paramService, { ParamService } from "./param.service";
+import userService from "./user.service";
 
 const buildkitImage = "moby/buildkit:master";
+const nixpacksInitImage = "alpine:3.19";
+
+function isGitHubUrl(gitUrl: string): boolean {
+    return /^https?:\/\/([^/]+@)?(github\.com|api\.github\.com)/.test(gitUrl) || gitUrl.includes('github.com');
+}
+
+async function resolveGitUrlWithUserToken(app: AppExtendedModel, userEmail?: string | null): Promise<string | undefined> {
+    if (app.gitUsername && app.gitToken) {
+        return undefined; // caller will use app credentials
+    }
+    if (!userEmail || !app.gitUrl || !isGitHubUrl(app.gitUrl)) {
+        return undefined;
+    }
+    const user = await userService.getUserByEmail(userEmail);
+    if (!user.githubAccessToken) {
+        return undefined;
+    }
+    const username = user.githubUsername || 'git';
+    // Strip any existing auth from URL (e.g. https://user@github.com/...) then add token
+    const base = app.gitUrl.replace(/^https?:\/\/[^/]*@/, 'https://');
+    return base.replace(/^https?:\/\//, `https://${encodeURIComponent(username)}:${encodeURIComponent(user.githubAccessToken)}@`);
+}
 
 class BuildService {
 
-
-    async buildApp(deploymentId: string, app: AppExtendedModel, forceBuild: boolean = false): Promise<[string, string, Promise<void>]> {
+    async buildApp(deploymentId: string, app: AppExtendedModel, forceBuild: boolean = false, userEmail?: string | null): Promise<[string, string, Promise<void>]> {
         await namespaceService.createNamespaceIfNotExists(BUILD_NAMESPACE);
         const registryLocation = await paramService.getString(ParamService.REGISTRY_SOTRAGE_LOCATION, Constants.INTERNAL_REGISTRY_LOCATION);
         await registryService.deployRegistry(registryLocation!);
@@ -32,12 +54,17 @@ class BuildService {
         dlog(deploymentId, `Initialized app build...`);
         dlog(deploymentId, `Trying to clone repository...`);
 
+        const resolvedGitUrl = await resolveGitUrlWithUserToken(app, userEmail);
+        if (resolvedGitUrl && isGitHubUrl(app.gitUrl!)) {
+            await dlog(deploymentId, `Using connected GitHub account for private repo access.`);
+        }
+
         // Check if last build is already up to date with data in git repo
         const latestSuccessfulBuld = buildsForApp.find(x => x.status === 'SUCCEEDED');
         const latestRemoteGitHash = await gitService.openGitContext(app, async (ctx) => {
             await ctx.checkIfDockerfileExists();
             return await ctx.getLatestRemoteCommitHash();
-        });
+        }, resolvedGitUrl);
 
         dlog(deploymentId, `Cloned repository successfully`);
         dlog(deploymentId, `Latest remote git hash: ${latestRemoteGitHash}`);
@@ -52,25 +79,39 @@ class BuildService {
                 await dlog(deploymentId, `Docker Image for last build not found in internal registry, creating new build.`);
             }
         }
-        return await this.createAndStartBuildJob(deploymentId, app, latestRemoteGitHash);
+        return await this.createAndStartBuildJob(deploymentId, app, latestRemoteGitHash, resolvedGitUrl);
     }
 
-    private async createAndStartBuildJob(deploymentId: string, app: AppExtendedModel, latestRemoteGitHash: string): Promise<[string, string, Promise<void>]> {
-
+    private async createAndStartBuildJob(deploymentId: string, app: AppExtendedModel, latestRemoteGitHash: string, resolvedGitUrl?: string): Promise<[string, string, Promise<void>]> {
         const buildName = KubeObjectNameUtils.addRandomSuffix(KubeObjectNameUtils.toJobName(app.id));
 
         dlog(deploymentId, `Creating build job with name: ${buildName}`);
 
+        const jobDefinition =
+            app.buildMethod === 'NIXPACKS'
+                ? this.createNixpacksBuildJob(deploymentId, app, buildName, latestRemoteGitHash, resolvedGitUrl)
+                : this.createDockerfileBuildJob(deploymentId, app, buildName, latestRemoteGitHash, resolvedGitUrl);
+
+        await k3s.batch.createNamespacedJob(BUILD_NAMESPACE, jobDefinition);
+
+        await dlog(deploymentId, `Build job ${buildName} started successfully`);
+
+        await new Promise(resolve => setTimeout(resolve, 5000)); // wait to be sure that pod is created
+        await this.logBuildOutput(deploymentId, buildName);
+
+        const buildJobPromise = this.waitForJobCompletion(jobDefinition.metadata!.name!);
+
+        return [buildName, latestRemoteGitHash, buildJobPromise];
+    }
+
+    private createDockerfileBuildJob(deploymentId: string, app: AppExtendedModel, buildName: string, latestRemoteGitHash: string, resolvedGitUrl?: string): V1Job {
         const contextPaths = PathUtils.splitPath(app.dockerfilePath);
 
-        // Prepare Git URL with authentication if needed
-        let gitContextUrl = `${app.gitUrl!}#refs/heads/${app.gitBranch}${contextPaths.folderPath ? ':' + contextPaths.folderPath : ''}`;
-        if (app.gitUsername && app.gitToken) {
-            const authenticatedGitUrl = app.gitUrl!.replace('https://', `https://${app.gitUsername}:${app.gitToken}@`);
-            gitContextUrl = `${authenticatedGitUrl}#refs/heads/${app.gitBranch}${contextPaths.folderPath ? ':' + contextPaths.folderPath : ''}`;
-        }
+        const baseGitUrl = resolvedGitUrl ?? (app.gitUsername && app.gitToken
+            ? app.gitUrl!.replace('https://', `https://${app.gitUsername}:${app.gitToken}@`)
+            : app.gitUrl!);
+        const gitContextUrl = `${baseGitUrl}#refs/heads/${app.gitBranch}${contextPaths.folderPath ? ':' + contextPaths.folderPath : ''}`;
 
-        // BuildKit arguments for buildctl-daemonless.sh
         const buildkitArgs = [
             "build",
             "--frontend",
@@ -85,7 +126,7 @@ class BuildService {
 
         dlog(deploymentId, `Dockerfile context path: ${contextPaths.folderPath ?? 'root directory of Git Repository'}. Dockerfile name: ${contextPaths.filePath}`);
 
-        const jobDefinition: V1Job = {
+        return {
             apiVersion: "batch/v1",
             kind: "Job",
             metadata: {
@@ -99,10 +140,9 @@ class BuildService {
                 }
             },
             spec: {
-                ttlSecondsAfterFinished: 86400, // 1 day
+                ttlSecondsAfterFinished: 86400,
                 template: {
                     spec: {
-                        // Depends on feature gate UserNamespacesSupport (available in k8s 1.25+)
                         hostUsers: false,
                         containers: [
                             {
@@ -110,28 +150,112 @@ class BuildService {
                                 image: buildkitImage,
                                 command: ["buildctl-daemonless.sh"],
                                 args: buildkitArgs,
-                                securityContext: {
-                                    privileged: true
-                                }
+                                securityContext: { privileged: true }
                             },
                         ],
                         restartPolicy: "Never",
-
                     },
                 },
                 backoffLimit: 0,
             },
         };
-        await k3s.batch.createNamespacedJob(BUILD_NAMESPACE, jobDefinition);
+    }
 
-        await dlog(deploymentId, `Build job ${buildName} started successfully`);
+    private createNixpacksBuildJob(deploymentId: string, app: AppExtendedModel, buildName: string, latestRemoteGitHash: string, resolvedGitUrl?: string): V1Job {
+        const gitUrl = resolvedGitUrl ?? (app.gitUsername && app.gitToken
+            ? app.gitUrl!.replace('https://', `https://${app.gitUsername}:${app.gitToken}@`)
+            : app.gitUrl!);
+        const contextPaths = PathUtils.splitPath(app.dockerfilePath);
+        const contextSubdir = (contextPaths.folderPath || '').replace(/^\.\/?/, '');
+        const branch = app.gitBranch || 'main';
 
-        await new Promise(resolve => setTimeout(resolve, 5000)); // wait to be sure that pod is created
-        await this.logBuildOutput(deploymentId, buildName);
+        // Init: Alpine has no /bin/bash by default. Use /bin/sh to install bash, then exec bash for the rest (nixpacks install script needs bash).
+        const initScriptBash = [
+            'set -e',
+            'echo "==> Installing nixpacks..."',
+            'curl -sSL https://raw.githubusercontent.com/railwayapp/nixpacks/main/install.sh | bash -s -- -y -b /usr/local/bin',
+            'nixpacks --version || (echo "ERROR: nixpacks not found after install" && exit 1)',
+            'echo "==> Cloning repository..."',
+            'git clone "$GIT_URL" /workspace/repo',
+            'cd /workspace/repo',
+            'git checkout "$GIT_BRANCH"',
+            'if [ -n "$CONTEXT_SUBDIR" ]; then cd "$CONTEXT_SUBDIR"; fi',
+            'echo "==> Running nixpacks build..."',
+            'nixpacks build . --out /workspace/out',
+            'echo "==> Merging Nixpacks output into app source (Dockerfile + .nixpacks)..."',
+            'cp -r /workspace/out/. .',
+            '[ -f Dockerfile ] || [ -f .nixpacks/Dockerfile ] || (echo "ERROR: No Dockerfile in nixpacks output. Contents:" && ls -laR /workspace/out && exit 1)',
+            'echo "==> Nixpacks build finished successfully"'
+        ].join(' && ');
+        // Single-quote for sh so ( ) and " inside the bash script are not interpreted by sh. Escape any ' in script as '\''
+        const initScript = `apk add --no-cache git curl bash tar gzip && exec /bin/bash -c '${initScriptBash.replace(/'/g, "'\\''")}'`;
 
-        const buildJobPromise = this.waitForJobCompletion(jobDefinition.metadata!.name!)
+        // Context = app source dir with .nixpacks/ (and Dockerfile inside it in Nixpacks 1.41+) copied from nixpacks --out.
+        const nixpacksContextPath = contextSubdir ? `/workspace/repo/${contextSubdir}` : '/workspace/repo';
+        // Nixpacks 1.41+ writes Dockerfile under .nixpacks/Dockerfile, not at output root.
+        const nixpacksDockerfilePath = '.nixpacks/Dockerfile';
 
-        return [buildName, latestRemoteGitHash, buildJobPromise];
+        const buildkitArgs = [
+            "build",
+            "--frontend", "gateway.v0",
+            "--opt", "source=docker/dockerfile",
+            "--opt", `filename=${nixpacksDockerfilePath}`,
+            "--local", `context=${nixpacksContextPath}`,
+            "--local", `dockerfile=${nixpacksContextPath}`,
+            "--output",
+            `type=image,name=${registryService.createInternalContainerRegistryUrlForAppId(app.id)},push=true,registry.insecure=true`
+        ];
+
+        dlog(deploymentId, `Nixpacks build: context ${nixpacksContextPath} (app source + Dockerfile + .nixpacks)`);
+
+        return {
+            apiVersion: "batch/v1",
+            kind: "Job",
+            metadata: {
+                name: buildName,
+                namespace: BUILD_NAMESPACE,
+                annotations: {
+                    [Constants.QS_ANNOTATION_APP_ID]: app.id,
+                    [Constants.QS_ANNOTATION_PROJECT_ID]: app.projectId,
+                    [Constants.QS_ANNOTATION_GIT_COMMIT]: latestRemoteGitHash,
+                    [Constants.QS_ANNOTATION_DEPLOYMENT_ID]: deploymentId,
+                }
+            },
+            spec: {
+                ttlSecondsAfterFinished: 86400,
+                template: {
+                    spec: {
+                        hostUsers: false,
+                        initContainers: [
+                            {
+                                name: `${buildName}-nixpacks`,
+                                image: nixpacksInitImage,
+                                command: ["/bin/sh", "-c", initScript],
+                                env: [
+                                    { name: "GIT_URL", value: gitUrl },
+                                    { name: "GIT_BRANCH", value: branch },
+                                    { name: "CONTEXT_SUBDIR", value: contextSubdir },
+                                ],
+                                volumeMounts: [{ name: "nixpacks-out", mountPath: "/workspace" }],
+                            },
+                        ],
+                        containers: [
+                            {
+                                name: buildName,
+                                image: buildkitImage,
+                                command: ["buildctl-daemonless.sh"],
+                                args: buildkitArgs,
+                                securityContext: { privileged: true },
+                                volumeMounts: [{ name: "nixpacks-out", mountPath: "/workspace" }],
+                            },
+                        ],
+                        volumes: [{ name: "nixpacks-out", emptyDir: {} }],
+                        restartPolicy: "Never",
+                    },
+                },
+                backoffLimit: 0,
+            },
+        };
     }
 
     async logBuildOutput(deploymentId: string, buildName: string) {
@@ -139,26 +263,53 @@ class BuildService {
         const pod = await this.getPodForJob(buildName);
         await podService.waitUntilPodIsRunningFailedOrSucceded(BUILD_NAMESPACE, pod.podName);
 
-        const logStream = new stream.PassThrough();
+        // Extra delay so the main container log endpoint is ready (pods with init containers can race)
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        const k3sStreamRequest = await k3s.log.log(BUILD_NAMESPACE, pod.podName, pod.containerName, logStream, {
-            follow: true,
-            tailLines: undefined,
-            timestamps: true,
-            pretty: false,
-            previous: false
-        });
+        const maxLogRetries = 10;
+        const logRetryDelayMs = 5000;
+        let logStream: stream.PassThrough | null = null;
+        let lastErr: unknown;
+        for (let attempt = 1; attempt <= maxLogRetries; attempt++) {
+            logStream = new stream.PassThrough();
+            try {
+                await k3s.log.log(BUILD_NAMESPACE, pod.podName, pod.containerName, logStream, {
+                    follow: true,
+                    tailLines: undefined,
+                    timestamps: true,
+                    pretty: false,
+                    previous: false
+                });
+                lastErr = undefined;
+                break;
+            } catch (err: unknown) {
+                lastErr = err;
+                if (attempt < maxLogRetries) {
+                    const msg = String((err as { body?: { message?: string }; response?: { body?: { message?: string } }; message?: string })?.body?.message
+                        ?? (err as { response?: { body?: { message?: string } } })?.response?.body?.message
+                        ?? (err as Error)?.message ?? '');
+                    await dlog(deploymentId, `Waiting for build container logs (attempt ${attempt}/${maxLogRetries})${msg ? `: ${msg.slice(0, 120)}` : ''}...`);
+                    await new Promise(resolve => setTimeout(resolve, logRetryDelayMs));
+                    continue;
+                }
+                throw err;
+            }
+        }
+        if (lastErr) {
+            throw lastErr;
+        }
 
-        logStream.on('data', async (chunk) => {
+        const streamToUse = logStream!;
+        streamToUse.on('data', async (chunk) => {
             await dlog(deploymentId, chunk.toString(), false, false);
         });
 
-        logStream.on('error', async (error) => {
+        streamToUse.on('error', async (error) => {
             console.error("Error in build log stream for deployment " + deploymentId, error);
             await dlog(deploymentId, '[ERROR] An unexpected error occurred while streaming logs.');
         });
 
-        logStream.on('end', async () => {
+        streamToUse.on('end', async () => {
             console.log(`[END] Log stream ended for build process: ${buildName}`);
             await dlog(deploymentId, `[END] Log stream ended for build process: ${buildName}`);
         });

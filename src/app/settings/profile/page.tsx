@@ -10,6 +10,7 @@ import {
 import PageTitle from "@/components/custom/page-title";
 import ProfilePasswordChange from "./profile-password-change";
 import ToTpSettings from "./totp-settings";
+import GitHubConnectionSettings from "./github-connection";
 import userService from "@/server/services/user.service";
 import BreadcrumbSetter from "@/components/breadcrumbs-setter";
 
@@ -29,6 +30,10 @@ export default async function ProjectPage() {
             ]} />
             <ProfilePasswordChange />
             <ToTpSettings totpEnabled={data.twoFaEnabled} />
+            <GitHubConnectionSettings 
+                githubUsername={data.githubUsername} 
+                githubConnected={!!data.githubAccessToken} 
+            />
         </div>
     )
 }

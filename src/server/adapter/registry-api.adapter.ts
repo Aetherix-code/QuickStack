@@ -18,11 +18,23 @@ interface OCIManifest {
 
 // Source: https://distribution.github.io/distribution/spec/api/
 
+// When running in-cluster (production), use the internal service URL.
+// In development, the Next.js server runs on the host and must reach the registry via NodePort (30100).
+// Set REGISTRY_BASE_URL if your cluster is on another host (e.g. http://192.168.0.92:30100).
+const REGISTRY_NODE_PORT = 30100;
+
 class RegistryApiAdapter {
 
-    private registryBaseUrl = process.env.NODE_ENV === 'production' ?
-        'http://registry-svc.registry-and-build.svc.cluster.local:5000' :
-        'http://localhost:5000';
+    private get registryBaseUrl(): string {
+        if (process.env.REGISTRY_BASE_URL) {
+            const url = process.env.REGISTRY_BASE_URL.replace(/\/$/, '');
+            return url.startsWith('http') ? url : `http://${url}`;
+        }
+        if (process.env.NODE_ENV === 'production') {
+            return 'http://registry-svc.registry-and-build.svc.cluster.local:5000';
+        }
+        return `http://localhost:${REGISTRY_NODE_PORT}`;
+    }
 
     async getAllImages() {
 

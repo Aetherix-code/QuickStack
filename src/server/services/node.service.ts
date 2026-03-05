@@ -25,7 +25,8 @@ class ClusterService {
                     containerRuntimeVersion: node.status?.nodeInfo?.containerRuntimeVersion!,
                     kubeProxyVersion: node.status?.nodeInfo?.kubeProxyVersion!,
                     kubeletVersion: node.status?.nodeInfo?.kubeletVersion!,
-                    isMasterNode: node.metadata?.labels?.['node-role.kubernetes.io/master'] === 'true',
+                    isMasterNode: node.metadata?.labels?.['node-role.kubernetes.io/master'] === 'true'
+                        || node.metadata?.labels?.['node-role.kubernetes.io/control-plane'] === 'true',
 
                     memoryOk: node.status?.conditions?.filter((condition) => condition.type === 'MemoryPressure')[0].status === 'False',
                     memoryStatusText: node.status?.conditions?.filter((condition) => condition.type === 'MemoryPressure')[0].message,
@@ -43,9 +44,13 @@ class ClusterService {
         })();
     }
 
-    async getMasterNode(): Promise<NodeInfoModel> {
+    async getMasterNode(): Promise<NodeInfoModel | null> {
         const nodes = await this.getNodeInfo();
-        return nodes.find(node => node.isMasterNode)!;
+        const master = nodes.find(node => node.isMasterNode);
+        if (master) return master;
+        // Single-node or K3s without role labels: use first Ready node, then any node
+        const ready = nodes.find(node => node.status === 'Ready');
+        return ready ?? nodes[0] ?? null;
     }
 
     async setNodeStatus(nodeName: string, schedulable: boolean) {

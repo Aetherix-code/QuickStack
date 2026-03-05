@@ -188,6 +188,52 @@ class DeploymentService {
             body.spec!.template!.spec!.imagePullSecrets = [{ name: dockerPullSecretName }];
         }
 
+        // Apply node affinity configuration based on label selectors
+        const labelSelectors = (() => {
+            try {
+                return app.nodeAffinityLabelSelector ? JSON.parse(app.nodeAffinityLabelSelector) : [];
+            } catch {
+                return [];
+            }
+        })();
+
+        if (app.nodeAffinityType === 'REQUIRED' && labelSelectors.length > 0) {
+            dlog(deploymentId, `Configuring required node affinity with ${labelSelectors.length} label selector(s)`);
+            body.spec!.template!.spec!.affinity = {
+                nodeAffinity: {
+                    requiredDuringSchedulingIgnoredDuringExecution: {
+                        nodeSelectorTerms: [
+                            {
+                                matchExpressions: labelSelectors.map((selector: { key: string; value: string }) => ({
+                                    key: selector.key,
+                                    operator: 'In',
+                                    values: [selector.value]
+                                }))
+                            }
+                        ]
+                    }
+                }
+            };
+        } else if (app.nodeAffinityType === 'PREFERRED' && labelSelectors.length > 0) {
+            dlog(deploymentId, `Configuring preferred node affinity with ${labelSelectors.length} label selector(s)`);
+            body.spec!.template!.spec!.affinity = {
+                nodeAffinity: {
+                    preferredDuringSchedulingIgnoredDuringExecution: labelSelectors.map((selector: { key: string; value: string; weight?: number }) => ({
+                        weight: selector.weight || 50, // Use custom weight or default to 50
+                        preference: {
+                            matchExpressions: [
+                                {
+                                    key: selector.key,
+                                    operator: 'In',
+                                    values: [selector.value]
+                                }
+                            ]
+                        }
+                    }))
+                }
+            };
+        }
+
         if (existingDeployment) {
             dlog(deploymentId, `Replacing existing deployment...`);
             const res = await k3s.apps.replaceNamespacedDeployment(app.id, app.projectId, body);

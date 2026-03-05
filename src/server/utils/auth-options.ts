@@ -6,6 +6,7 @@ import { JWT } from "next-auth/jwt";
 import { UserSession } from "@/shared/model/sim-session.model";
 import dataAccess from "@/server/adapter/db.client";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GitHubProvider from "next-auth/providers/github";
 import bcrypt from "bcrypt";
 import userService from "@/server/services/user.service";
 
@@ -52,8 +53,42 @@ export const authOptions: NextAuthOptions = {
                 }
                 return mapUser(user);
             }
-        })
+        }),
+        ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? [
+            GitHubProvider({
+                clientId: process.env.GITHUB_CLIENT_ID,
+                clientSecret: process.env.GITHUB_CLIENT_SECRET,
+                authorization: {
+                    params: {
+                        scope: 'read:user user:email repo'
+                    }
+                }
+            })
+        ] : [])
     ],
+    callbacks: {
+        async signIn({ user, account, profile }) {
+            // Handle GitHub OAuth account linking
+            if (account?.provider === 'github' && account.access_token) {
+                const existingUser = await dataAccess.client.user.findUnique({
+                    where: { email: user.email! }
+                });
+
+                if (existingUser) {
+                    // Update existing user with GitHub info
+                    await dataAccess.client.user.update({
+                        where: { email: user.email! },
+                        data: {
+                            githubAccessToken: account.access_token,
+                            githubUsername: (profile as any)?.login,
+                            githubId: account.providerAccountId,
+                        }
+                    });
+                }
+            }
+            return true;
+        },
+    },
     adapter: PrismaAdapter(dataAccess.client),
 };
 

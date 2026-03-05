@@ -8,12 +8,12 @@ import path from "path";
 
 class GitService {
 
-    async openGitContext<T>(app: AppExtendedModel, action: (ctx: InternalGitService) => Promise<T>): Promise<T> {
+    async openGitContext<T>(app: AppExtendedModel, action: (ctx: InternalGitService) => Promise<T>, resolvedGitUrl?: string): Promise<T> {
         try {
             let git: SimpleGit | undefined = undefined;
             let internalGitService: InternalGitService | undefined = undefined;
             try {
-                git = await this.pullLatestChangesFromRepo(app);
+                git = await this.pullLatestChangesFromRepo(app, resolvedGitUrl);
                 internalGitService = new InternalGitService(git, app);
             } catch (error) {
                 console.error('Error while connecting to the git repository:', error);
@@ -32,7 +32,7 @@ class GitService {
         await FsUtils.deleteDirIfExistsAsync(gitPath, true);
     }
 
-    private async pullLatestChangesFromRepo(app: AppExtendedModel) {
+    private async pullLatestChangesFromRepo(app: AppExtendedModel, resolvedGitUrl?: string) {
         console.log(`Pulling latest source for app ${app.id}...`);
         const gitPath = PathUtils.gitRootPathForApp(app.id);
 
@@ -40,7 +40,7 @@ class GitService {
         await FsUtils.createDirIfNotExistsAsync(gitPath, true);
 
         const git = simpleGit(gitPath);
-        const gitUrl = this.getGitUrl(app);
+        const gitUrl = resolvedGitUrl ?? this.getGitUrl(app);
 
         // initial clone
         console.log(await git.clone(gitUrl, gitPath));
@@ -65,6 +65,9 @@ class InternalGitService {
     ) { }
 
     async checkIfDockerfileExists() {
+        if (this.app.buildMethod === 'NIXPACKS') {
+            return;
+        }
         const gitPath = PathUtils.gitRootPathForApp(this.app.id);
         const dockerFilePath = this.app.dockerfilePath;
         if (!dockerFilePath) {

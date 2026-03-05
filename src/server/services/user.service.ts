@@ -250,6 +250,24 @@ export class UserService {
         }
     }
 
+    async disconnectGitHub(userMail: string) {
+        try {
+            await this.getUserByEmail(userMail);
+            await dataAccess.client.user.update({
+                where: {
+                    email: userMail
+                },
+                data: {
+                    githubAccessToken: null,
+                    githubUsername: null,
+                    githubId: null
+                }
+            });
+        } finally {
+            revalidateTag(Tags.users());
+        }
+    }
+
     async deleteUserById(id: string) {
         try {
             const allUsers = await this.getAllUsers();

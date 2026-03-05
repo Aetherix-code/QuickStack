@@ -77,6 +77,10 @@ model User {
   twoFaEnabled  Boolean   @default(false)
   image         String?
 
+  githubAccessToken String?
+  githubUsername    String?
+  githubId          String?
+
   userGroupId String?
   userGroup   UserGroup? @relation(fields: [userGroupId], references: [id])
 
@@ -189,6 +193,7 @@ model App {
   gitUsername    String?
   gitToken       String?
   dockerfilePath String  @default("./Dockerfile")
+  buildMethod    String  @default("DOCKERFILE") // DOCKERFILE, NIXPACKS
 
   replicas Int    @default(1)
   envVars  String @default("")
@@ -203,6 +208,9 @@ model App {
   ingressNetworkPolicy String  @default("ALLOW_ALL") // ALLOW_ALL, NAMESPACE_ONLY, DENY_ALL, INTERNET_ONLY
   egressNetworkPolicy  String  @default("ALLOW_ALL") // ALLOW_ALL, NAMESPACE_ONLY, DENY_ALL, INTERNET_ONLY
   useNetworkPolicy     Boolean @default(true)
+
+  nodeAffinityType          String  @default("NONE") // NONE, REQUIRED, PREFERRED
+  nodeAffinityLabelSelector String  @default("[]") // JSON array of {key: string, value: string}
 
   appDomains         AppDomain[]
   appPorts           AppPort[]

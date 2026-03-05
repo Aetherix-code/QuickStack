@@ -8,6 +8,7 @@ import { ServiceException } from "@/shared/model/service.exception.model";
 import appService from "@/server/services/app.service";
 import userService from "@/server/services/user.service";
 import { getAuthUserSession, isAuthorizedWriteForApp, saveFormAction, simpleAction } from "@/server/utils/action-wrapper.utils";
+import { AppNodeAffinityModel, appNodeAffinityZodModel } from "@/shared/model/app-node-affinity.model";
 
 
 export const saveGeneralAppSourceInfo = async (prevState: any, inputData: AppSourceInfoInputModel, appId: string) => {
@@ -56,4 +57,31 @@ export const saveGeneralAppRateLimits = async (prevState: any, inputData: AppRat
             ...validatedData,
             id: appId,
         });
+    });
+
+export const saveGeneralAppNodeAffinity = async (prevState: any, inputData: AppNodeAffinityModel, appId: string) =>
+    saveFormAction(inputData, appNodeAffinityZodModel, async (validatedData) => {
+        await isAuthorizedWriteForApp(appId);
+
+        if ((validatedData.nodeAffinityType === 'REQUIRED' || validatedData.nodeAffinityType === 'PREFERRED')
+            && validatedData.nodeAffinityLabelSelector.length === 0) {
+            throw new ServiceException('At least one node label selector must be added when using Required or Preferred affinity type');
+        }
+
+        const existingApp = await appService.getById(appId);
+        await appService.save({
+            ...existingApp,
+            nodeAffinityType: validatedData.nodeAffinityType,
+            nodeAffinityLabelSelector: JSON.stringify(validatedData.nodeAffinityLabelSelector),
+            id: appId,
+        });
+    });
+
+export const getCurrentUserGitHubConnection = async () =>
+    simpleAction(async () => {
+        const user = await getAuthUserSession();
+        return new SuccessActionResult({
+            hasGitHub: !!user.githubAccessToken,
+            githubUsername: user.githubUsername
+        }, undefined);
     });

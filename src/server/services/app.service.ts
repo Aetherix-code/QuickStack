@@ -16,7 +16,7 @@ import networkPolicyService from "./network-policy.service";
 
 class AppService {
 
-    async buildAndDeploy(appId: string, forceBuild: boolean = false) {
+    async buildAndDeploy(appId: string, forceBuild: boolean = false, userEmail?: string | null) {
         const deploymentId = crypto.randomUUID();
         return await deploymentLogService.catchErrosAndLog(deploymentId, async () => {
             const app = await this.getExtendedById(appId);
@@ -29,8 +29,8 @@ class AppService {
 -----------------------------------------------`, false);
 
             if (app.sourceType === 'GIT') {
-                // first make build
-                const [buildJobName, gitCommitHash, buildPromise] = await buildService.buildApp(deploymentId, app, forceBuild);
+                // first make build (userEmail used for GitHub private repo via connected account)
+                const [buildJobName, gitCommitHash, buildPromise] = await buildService.buildApp(deploymentId, app, forceBuild, userEmail);
                 buildPromise.then(async () => {
                     console.log('Build job finished, deploying...');
                     dlog(deploymentId, `Starting deployment with output from build "${buildJobName}"`);

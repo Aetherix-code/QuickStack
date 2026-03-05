@@ -39,3 +39,10 @@ export const deactivate2fa = async () =>
     await userService.deactivate2fa(session.email);
     return new SuccessActionResult(undefined, '2FA settings deactivated successfully');
   });
+
+export const disconnectGitHub = async () =>
+  simpleAction(async () => {
+    const session = await getAuthUserSession();
+    await userService.disconnectGitHub(session.email);
+    return new SuccessActionResult(undefined, 'GitHub account disconnected successfully');
+  });
