@@ -57,6 +57,9 @@ export const mysqlAppTemplate: AppTemplateModel = {
             ingressNetworkPolicy: Constants.DEFAULT_INGRESS_NETWORK_POLICY_DATABASES,
             egressNetworkPolicy: Constants.DEFAULT_EGRESS_NETWORK_POLICY_DATABASES,
             useNetworkPolicy: true,
+            buildMethod: 'DOCKERFILE',
+            nodeAffinityType: 'NONE',
+            nodeAffinityLabelSelector: '[]',
         },
         appDomains: [],
         appVolumes: [{

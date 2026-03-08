@@ -5,6 +5,8 @@ import { RolePermissionEnum } from "./role-extended.model.ts";
 export interface UserSession {
     email: string;
     userGroup?: UserGroupExtended;
+    githubAccessToken?: string;
+    githubUsername?: string;
 }
 
 export type UserGroupExtended = {

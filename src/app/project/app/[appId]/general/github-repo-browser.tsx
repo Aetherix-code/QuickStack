@@ -13,10 +13,15 @@ import { Label } from "@/components/ui/label";
 interface GitHubRepoBrowserProps {
     onSelect: (repoUrl: string, branch: string) => void;
     disabled?: boolean;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export default function GitHubRepoBrowser({ onSelect, disabled }: GitHubRepoBrowserProps) {
-    const [open, setOpen] = useState(false);
+export default function GitHubRepoBrowser({ onSelect, disabled, open: controlledOpen, onOpenChange }: GitHubRepoBrowserProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+    const isControlled = controlledOpen !== undefined;
+    const open = isControlled ? controlledOpen : internalOpen;
+    const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen;
     const [repos, setRepos] = useState<GitHubRepo[]>([]);
     const [branches, setBranches] = useState<GitHubBranch[]>([]);
     const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null);
@@ -51,7 +56,7 @@ export default function GitHubRepoBrowser({ onSelect, disabled }: GitHubRepoBrow
 
         setSelectedRepo(repo);
         setSelectedBranch(repo.default_branch);
-        
+
         setLoadingBranches(true);
         try {
             const [owner, repoName] = repo.full_name.split('/');
@@ -80,12 +85,14 @@ export default function GitHubRepoBrowser({ onSelect, disabled }: GitHubRepoBrow
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button type="button" variant="outline" disabled={disabled}>
-                    <Github className="mr-2 h-4 w-4" />
-                    Browse GitHub Repos
-                </Button>
-            </DialogTrigger>
+            {!isControlled && (
+                <DialogTrigger asChild>
+                    <Button type="button" variant="outline" disabled={disabled}>
+                        <Github className="mr-2 h-4 w-4" />
+                        Browse GitHub Repos
+                    </Button>
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Select GitHub Repository</DialogTitle>
@@ -174,9 +181,9 @@ export default function GitHubRepoBrowser({ onSelect, disabled }: GitHubRepoBrow
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                         Cancel
                     </Button>
-                    <Button 
-                        type="button" 
-                        onClick={handleConfirm} 
+                    <Button
+                        type="button"
+                        onClick={handleConfirm}
                         disabled={!selectedRepo || !selectedBranch}
                     >
                         Use This Repository

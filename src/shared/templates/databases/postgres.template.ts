@@ -51,6 +51,9 @@ export const postgreAppTemplate: AppTemplateModel = {
             envVars: `PGDATA=/var/lib/qs-postgres/data
 `,
             useNetworkPolicy: true,
+            buildMethod: 'DOCKERFILE',
+            nodeAffinityType: 'NONE',
+            nodeAffinityLabelSelector: '[]',
         },
         appDomains: [],
         appVolumes: [{

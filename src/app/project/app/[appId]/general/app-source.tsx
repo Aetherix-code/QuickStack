@@ -28,19 +28,19 @@ export default function GeneralAppSource({ app, readonly }: {
 }) {
     const [hasGitHub, setHasGitHub] = useState(false);
     const [showRepoBrowser, setShowRepoBrowser] = useState(false);
-    
+
     const form = useForm<AppSourceInfoInputModel>({
         resolver: zodResolver(appSourceInfoInputZodModel),
         defaultValues: {
             ...app,
             sourceType: app.sourceType as 'GIT' | 'CONTAINER',
-            buildMethod: app.buildMethod || 'DOCKERFILE'
+            buildMethod: (app.buildMethod as 'DOCKERFILE' | 'NIXPACKS' | null | undefined) || 'DOCKERFILE'
         },
         disabled: readonly,
     });
 
     const [state, formAction] = useFormState((state: ServerActionResult<any, any>, payload: AppSourceInfoInputModel) => saveGeneralAppSourceInfo(state, payload, app.id), FormUtils.getInitialFormState<typeof appSourceInfoInputZodModel>());
-    
+
     useEffect(() => {
         getCurrentUserGitHubConnection().then(result => {
             if (result.status === 'success') {
@@ -48,7 +48,7 @@ export default function GeneralAppSource({ app, readonly }: {
             }
         });
     }, []);
-    
+
     useEffect(() => {
         if (state.status === 'success') {
             toast.success('Source Info Saved', {
@@ -106,8 +106,8 @@ export default function GeneralAppSource({ app, readonly }: {
                                                     <Input  {...field} value={field.value as string | number | readonly string[] | undefined} />
                                                 </FormControl>
                                                 {hasGitHub && !readonly && (
-                                                    <Button 
-                                                        type="button" 
+                                                    <Button
+                                                        type="button"
                                                         variant="outline"
                                                         onClick={() => setShowRepoBrowser(true)}
                                                     >
@@ -275,7 +275,7 @@ export default function GeneralAppSource({ app, readonly }: {
             </Form >
         </Card >
 
-        <GitHubRepoBrowser 
+        <GitHubRepoBrowser
             open={showRepoBrowser}
             onOpenChange={setShowRepoBrowser}
             onSelect={(repoUrl, branch) => {

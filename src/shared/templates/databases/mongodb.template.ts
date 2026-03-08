@@ -50,6 +50,9 @@ export const mongodbAppTemplate: AppTemplateModel = {
             memoryThreshold: 70,
             envVars: ``,
             useNetworkPolicy: true,
+            buildMethod: 'DOCKERFILE',
+            nodeAffinityType: 'NONE',
+            nodeAffinityLabelSelector: '[]',
         },
         appDomains: [],
         appVolumes: [{

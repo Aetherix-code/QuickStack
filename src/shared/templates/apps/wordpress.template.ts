@@ -47,6 +47,9 @@ export const wordpressAppTemplate: AppTemplateModel = {
 MYSQL_USER=wordpress
 `,
             useNetworkPolicy: true,
+            buildMethod: 'DOCKERFILE',
+            nodeAffinityType: 'NONE',
+            nodeAffinityLabelSelector: '[]',
         },
         appDomains: [],
         appVolumes: [{
@@ -91,6 +94,9 @@ WORDPRESS_DB_PASSWORD={password}
 WORDPRESS_TABLE_PREFIX=wp_
 `,
             useNetworkPolicy: true,
+            buildMethod: 'DOCKERFILE',
+            nodeAffinityType: 'NONE',
+            nodeAffinityLabelSelector: '[]',
         },
         appDomains: [],
         appVolumes: [{

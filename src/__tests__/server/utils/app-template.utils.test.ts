@@ -87,7 +87,8 @@ describe('AppTemplateService', () => {
                     username: 'testUser',
                     password: 'testPass',
                     port: 3306,
-                    hostname: 'localhost'
+                    hostname: 'localhost',
+                    internalConnectionUrl: 'mysql://testUser:testPass@localhost:3306/testDB',
                 };
 
                 AppTemplateUtils.replacePlaceholdersInEnvVariablesWithDatabaseInfo(app, databaseInfo);
