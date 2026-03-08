@@ -84,4 +84,8 @@ export class KubeObjectNameUtils {
     static toNetworkPolicyName(appId: string): string {
         return `np-${appId}`.substring(0, 63); // not more than 63 characters
     }
+
+    static toHpaName(appId: string): `hpa-${string}` {
+        return `hpa-${appId}`;
+    }
 }

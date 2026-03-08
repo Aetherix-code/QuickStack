@@ -6,7 +6,12 @@ export const appRateLimitsZodModel = z.object({
   memoryLimit: stringToOptionalNumber,
   cpuReservation: stringToOptionalNumber,
   cpuLimit: stringToOptionalNumber,
-  replicas: stringToNumber,
+  minReplicas: stringToNumber,
+  maxReplicas: stringToNumber,
+  currentReplicas: stringToNumber,
+  autoScalingEnabled: z.boolean(),
+  cpuThreshold: stringToNumber,
+  memoryThreshold: stringToNumber,
 })
 
 export type AppRateLimitsModel = z.infer<typeof appRateLimitsZodModel>;

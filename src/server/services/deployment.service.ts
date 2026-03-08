@@ -1,6 +1,7 @@
 import { AppExtendedModel } from "@/shared/model/app-extended.model";
 import k3s from "../adapter/kubernetes-api.adapter";
 import { V1Deployment, V1ReplicaSet } from "@kubernetes/client-node";
+import dataAccess from "../adapter/db.client";
 import buildService from "./build.service";
 import { ListUtils } from "../../shared/utils/list.utils";
 import { DeploymentInfoModel, DeploymentStatus } from "@/shared/model/deployment-info.model";
@@ -19,6 +20,7 @@ import secretService from "./secret.service";
 import fileBrowserService from "./file-browser-service";
 import podService from "./pod.service";
 import networkPolicyService from "./network-policy.service";
+import hpaService from "./hpa.service";
 
 class DeploymentService {
 
@@ -55,8 +57,25 @@ class DeploymentService {
     }
 
     async validateDeployment(app: AppExtendedModel) {
-        if (app.replicas > 1 && app.appVolumes.length > 0 && app.appVolumes.every(vol => vol.accessMode === 'ReadWriteOnce')) {
-            throw new ServiceException("Deployment with more than one replica is not possible if access mode of one volume is ReadWriteOnce.");
+        // Validate min/max replicas
+        if (app.minReplicas < 1) {
+            throw new ServiceException("Minimum replica count must be at least 1.");
+        }
+        if (app.maxReplicas < app.minReplicas) {
+            throw new ServiceException("Maximum replica count must be greater than or equal to minimum replica count.");
+        }
+        if (app.currentReplicas < app.minReplicas || app.currentReplicas > app.maxReplicas) {
+            throw new ServiceException(`Current replica count must be between ${app.minReplicas} and ${app.maxReplicas}.`);
+        }
+
+        // Validate ReadWriteOnce volume constraints
+        if (app.maxReplicas > 1 && app.appVolumes.length > 0 && app.appVolumes.some(vol => vol.accessMode === 'ReadWriteOnce')) {
+            throw new ServiceException("Maximum replica count must be 1 because you have at least one volume with access mode ReadWriteOnce.");
+        }
+
+        // Validate HPA requirements
+        if (app.autoScalingEnabled && !app.cpuReservation && !app.memoryReservation) {
+            throw new ServiceException("Auto-scaling requires CPU or memory resource requests to be set.");
         }
     }
 
@@ -102,7 +121,7 @@ class DeploymentService {
                 name: app.id,
             },
             spec: {
-                replicas: app.replicas,
+                replicas: app.autoScalingEnabled ? undefined : app.currentReplicas,
                 selector: {
                     matchLabels: {
                         app: app.id
@@ -248,6 +267,8 @@ class DeploymentService {
         await secretService.delteUnusedSecrets(app);
         dlog(deploymentId, `Updating ingress...`);
         await ingressService.createOrUpdateIngressForApp(deploymentId, app);
+        dlog(deploymentId, `Updating HPA...`);
+        await hpaService.createOrUpdateHpaForApp(deploymentId, app);
         dlog(deploymentId, `Deployment applied`);
     }
 
@@ -256,8 +277,35 @@ class DeploymentService {
         if (!existingDeployment) {
             throw new ServiceException("This app has not been deployed yet. Please deploy it first.");
         }
-        existingDeployment.spec!.replicas = replicas;
-        return k3s.apps.replaceNamespacedDeployment(appId, projectId, existingDeployment);
+
+        // Get app info for validation
+        const app = await dataAccess.client.app.findUnique({ where: { id: appId } });
+        if (!app) {
+            throw new ServiceException("App not found.");
+        }
+
+        // Allow scaling to 0 for maintenance operations (PVC updates, restores, stop app)
+        if (replicas !== 0) {
+            // Validate replica count is within bounds
+            if (replicas < app.minReplicas || replicas > app.maxReplicas) {
+                throw new ServiceException(`Replica count must be between ${app.minReplicas} and ${app.maxReplicas}.`);
+            }
+        }
+
+        // Update currentReplicas in database
+        await dataAccess.client.app.update({
+            where: { id: appId },
+            data: { currentReplicas: replicas }
+        });
+
+        // Only update deployment if not using HPA (unless scaling to 0 for maintenance)
+        if (!app.autoScalingEnabled || replicas === 0) {
+            existingDeployment.spec!.replicas = replicas;
+            return k3s.apps.replaceNamespacedDeployment(appId, projectId, existingDeployment);
+        } else {
+            // HPA is managing replicas, just update database
+            console.log(`HPA is enabled for app ${appId}, skipping direct replica update`);
+        }
     }
 
     async setReplicasToZeroAndWaitForShutdown(projectId: string, appId: string) {

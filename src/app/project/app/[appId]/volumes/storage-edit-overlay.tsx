@@ -65,7 +65,7 @@ export default function DialogEditDialog({ children, volume, app, nodesInfo }: {
     resolver: zodResolver(appVolumeEditZodModel),
     defaultValues: {
       ...volume,
-      accessMode: volume?.accessMode ?? (app.replicas > 1 ? "ReadWriteMany" : "ReadWriteOnce"),
+      accessMode: volume?.accessMode ?? (app.maxReplicas > 1 ? "ReadWriteMany" : "ReadWriteOnce"),
       storageClassName: (volume?.storageClassName ?? "longhorn") as 'longhorn' | 'local-path',
     }
   });
@@ -91,7 +91,7 @@ export default function DialogEditDialog({ children, volume, app, nodesInfo }: {
   useEffect(() => {
     form.reset({
       ...volume,
-      accessMode: volume?.accessMode ?? (app.replicas > 1 ? "ReadWriteMany" : "ReadWriteOnce"),
+      accessMode: volume?.accessMode ?? (app.maxReplicas > 1 ? "ReadWriteMany" : "ReadWriteOnce"),
       storageClassName: (volume?.storageClassName ?? "longhorn") as 'longhorn' | 'local-path',
     });
   }, [volume]);

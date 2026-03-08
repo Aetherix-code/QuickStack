@@ -40,7 +40,12 @@ export const postgreAppTemplate: AppTemplateModel = {
             appType: 'POSTGRES',
             sourceType: 'CONTAINER',
             containerImageSource: "",
-            replicas: 1,
+            minReplicas: 1,
+            maxReplicas: 1,
+            currentReplicas: 1,
+            autoScalingEnabled: false,
+            cpuThreshold: 70,
+            memoryThreshold: 70,
             ingressNetworkPolicy: Constants.DEFAULT_INGRESS_NETWORK_POLICY_DATABASES,
             egressNetworkPolicy: Constants.DEFAULT_EGRESS_NETWORK_POLICY_DATABASES,
             envVars: `PGDATA=/var/lib/qs-postgres/data

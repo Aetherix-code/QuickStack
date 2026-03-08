@@ -2,7 +2,7 @@
 
 import { SubmitButton } from "@/components/custom/submit-button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { FormUtils } from "@/frontend/utils/form.utilts";
 import { AppSourceInfoInputModel, appSourceInfoInputZodModel } from "@/shared/model/app-source-info.model";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { AppExtendedModel } from "@/shared/model/app-extended.model";
 import { cn } from "@/frontend/utils/utils";
+import { Switch } from "@/components/ui/switch";
 
 
 export default function GeneralAppRateLimits({ app, readonly }: {
@@ -52,21 +53,170 @@ export default function GeneralAppRateLimits({ app, readonly }: {
                     return formAction(data);
                 })()}>
                     <CardContent className="space-y-4">
-                        <div className={cn('grid grid-cols-2 gap-4 ', app.appType !== 'APP' && 'hidden')}>
-
+                        <div className={cn('space-y-4', app.appType !== 'APP' && 'hidden')}>
                             <FormField
                                 control={form.control}
-                                name="replicas"
+                                name="autoScalingEnabled"
                                 render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Replica Count</FormLabel>
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-base">Enable Auto-scaling (HPA)</FormLabel>
+                                            <FormDescription>
+                                                Automatically scale replicas based on CPU and memory usage
+                                            </FormDescription>
+                                        </div>
                                         <FormControl>
-                                            <Input type="number" {...field} value={field.value} />
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
                                         </FormControl>
-                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />
+
+                            {!form.watch('autoScalingEnabled') && (
+                                <FormField
+                                    control={form.control}
+                                    name="currentReplicas"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Replicas</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    min="1"
+                                                    placeholder="1"
+                                                    {...field}
+                                                    value={field.value}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value === '' ? 1 : parseInt(e.target.value) || 1;
+                                                        form.setValue('currentReplicas', value);
+                                                        form.setValue('minReplicas', value);
+                                                        form.setValue('maxReplicas', value);
+                                                    }}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                Number of container instances to run
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+
+                            {form.watch('autoScalingEnabled') && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="minReplicas"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Min Replicas</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min="1"
+                                                            placeholder="1"
+                                                            {...field}
+                                                            value={field.value}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value === '' ? 1 : parseInt(e.target.value) || 1;
+                                                                field.onChange(value);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control}
+                                            name="maxReplicas"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Max Replicas</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min="1"
+                                                            placeholder="10"
+                                                            {...field}
+                                                            value={field.value}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value === '' ? 10 : parseInt(e.target.value) || 10;
+                                                                field.onChange(value);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="cpuThreshold"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>CPU Threshold (%)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min="1"
+                                                            max="100"
+                                                            placeholder="70"
+                                                            {...field}
+                                                            value={field.value}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value === '' ? 70 : parseInt(e.target.value);
+                                                                field.onChange(value);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormDescription>
+                                                        Scale up when CPU usage exceeds this percentage
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control}
+                                            name="memoryThreshold"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Memory Threshold (%)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min="1"
+                                                            max="100"
+                                                            placeholder="70"
+                                                            {...field}
+                                                            value={field.value}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value === '' ? 70 : parseInt(e.target.value);
+                                                                field.onChange(value);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormDescription>
+                                                        Scale up when memory usage exceeds this percentage
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
 

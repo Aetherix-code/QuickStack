@@ -41,14 +41,36 @@ export const saveGeneralAppSourceInfo = async (prevState: any, inputData: AppSou
 
 export const saveGeneralAppRateLimits = async (prevState: any, inputData: AppRateLimitsModel, appId: string) =>
     saveFormAction(inputData, appRateLimitsZodModel, async (validatedData) => {
-        if (validatedData.replicas < 1) {
-            throw new ServiceException('Replica Count must be at least 1');
+        // Validate min/max replica constraints
+        if (validatedData.minReplicas < 1) {
+            throw new ServiceException('Minimum Replica Count must be at least 1');
         }
+        if (validatedData.maxReplicas < validatedData.minReplicas) {
+            throw new ServiceException('Maximum Replica Count must be greater than or equal to Minimum Replica Count');
+        }
+        if (validatedData.currentReplicas < validatedData.minReplicas || validatedData.currentReplicas > validatedData.maxReplicas) {
+            throw new ServiceException(`Current Replica Count must be between ${validatedData.minReplicas} and ${validatedData.maxReplicas}`);
+        }
+
+        // Validate threshold values
+        if (validatedData.cpuThreshold < 1 || validatedData.cpuThreshold > 100) {
+            throw new ServiceException('CPU Threshold must be between 1 and 100');
+        }
+        if (validatedData.memoryThreshold < 1 || validatedData.memoryThreshold > 100) {
+            throw new ServiceException('Memory Threshold must be between 1 and 100');
+        }
+
         await isAuthorizedWriteForApp(appId);
 
         const extendedApp = await appService.getExtendedById(appId);
-        if (extendedApp.appVolumes.some(v => v.accessMode === 'ReadWriteOnce') && validatedData.replicas > 1) {
-            throw new ServiceException('Replica Count must be 1 because you have at least one volume with access mode ReadWriteOnce.');
+        // Validate ReadWriteOnce volume constraints
+        if (extendedApp.appVolumes.some(v => v.accessMode === 'ReadWriteOnce') && validatedData.maxReplicas > 1) {
+            throw new ServiceException('Maximum Replica Count must be 1 because you have at least one volume with access mode ReadWriteOnce.');
+        }
+
+        // Validate HPA requirements
+        if (validatedData.autoScalingEnabled && !extendedApp.cpuReservation && !extendedApp.memoryReservation) {
+            throw new ServiceException('Auto-scaling requires CPU or memory resource requests to be set.');
         }
 
         const existingApp = await appService.getById(appId);

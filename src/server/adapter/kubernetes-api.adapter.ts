@@ -10,6 +10,7 @@ class K3sApiAdapter {
     network: k8s.NetworkingV1Api;
     customObjects: k8s.CustomObjectsApi;
     metrics: k8s.Metrics;
+    autoscaling: k8s.AutoscalingV2Api;
 
     constructor() {
         this.core = this.getK8sCoreApiClient();
@@ -19,6 +20,7 @@ class K3sApiAdapter {
         this.network = this.getK8sNetworkApiClient();
         this.customObjects = this.getK8sCustomObjectsApiClient();
         this.metrics = this.getMetricsApiClient();
+        this.autoscaling = this.getK8sAutoscalingApiClient();
     }
 
     getKubeConfig = () => {
@@ -75,6 +77,12 @@ class K3sApiAdapter {
 
     getMetricsApiClient = () => {
         return new k8s.Metrics(this.getKubeConfig());
+    }
+
+    getK8sAutoscalingApiClient = () => {
+        const kc = this.getKubeConfig()
+        const autoscalingClient = kc.makeApiClient(k8s.AutoscalingV2Api);
+        return autoscalingClient;
     }
 }
 

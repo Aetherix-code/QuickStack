@@ -26,7 +26,7 @@ export const startApp = async (appId: string) =>
     simpleAction(async () => {
         await isAuthorizedWriteForApp(appId);
         const app = await appService.getExtendedById(appId);
-        await deploymentService.setReplicasForDeployment(app.projectId, app.id, app.replicas);
+        await deploymentService.setReplicasForDeployment(app.projectId, app.id, app.currentReplicas);
         return new SuccessActionResult(undefined, 'Successfully started app.');
     });
 

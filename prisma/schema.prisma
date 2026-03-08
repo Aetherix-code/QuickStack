@@ -195,8 +195,13 @@ model App {
   dockerfilePath String  @default("./Dockerfile")
   buildMethod    String  @default("DOCKERFILE") // DOCKERFILE, NIXPACKS
 
-  replicas Int    @default(1)
-  envVars  String @default("")
+  minReplicas         Int     @default(1)
+  maxReplicas         Int     @default(1)
+  currentReplicas     Int     @default(1)
+  autoScalingEnabled  Boolean @default(false)
+  cpuThreshold        Int     @default(70)
+  memoryThreshold     Int     @default(70)
+  envVars             String  @default("")
 
   memoryReservation Int?
   memoryLimit       Int?
