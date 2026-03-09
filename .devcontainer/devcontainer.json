@@ -4,6 +4,10 @@
 	"service": "vscode-container",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
+	"features": {
+        "ghcr.io/devcontainers/features/common-utils:1": {},
+        "ghcr.io/oven-sh/devcontainers-features/bun:1": {}
+    },
 	"customizations": {
 		"vscode": {
 			"extensions": [
