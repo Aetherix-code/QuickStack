@@ -6,8 +6,7 @@
 			"installZsh": true,
 			"configureZshAsDefaultShell": true
 		},
-		"ghcr.io/devcontainers/features/docker-in-docker:1": {},
-    	"ghcr.io/devcontainers/features/k3d:1": {}
+		"ghcr.io/devcontainers/features/docker-in-docker:1": {}
 	},
 	"forwardPorts": [3000],
 	"portsAttributes": {
@@ -43,6 +42,6 @@
 	// yarn install: install Node dependencies
 	// yarn prisma-generate: generate Prisma client & Zod schemas
 	// mkdir -p storage/db: ensure the SQLite database directory exists
-	"postCreateCommand": "curl -fsSL https://bun.sh/install | bash && yarn install && yarn prisma-generate && mkdir -p storage/db",
+	"postCreateCommand": "curl -fsSL https://bun.sh/install | bash && curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash",
 	"remoteUser": "node"
 }
