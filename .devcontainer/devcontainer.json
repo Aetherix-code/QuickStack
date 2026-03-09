@@ -1,18 +1,23 @@
 {
 	"name": "QuickStack",
 	"image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+	"privileged": true,
+	"runArgs": ["--cgroupns=host"],
 	"features": {
 		"ghcr.io/devcontainers/features/common-utils:2": {
 			"installZsh": true,
 			"configureZshAsDefaultShell": true
-		},
-		"ghcr.io/devcontainers/features/docker-in-docker:1": {}
+		}
 	},
-	"forwardPorts": [3000],
+	"forwardPorts": [3000, 6443],
 	"portsAttributes": {
 		"3000": {
 			"label": "Next.js Dev Server",
 			"onAutoForward": "notify"
+		},
+		"6443": {
+			"label": "k3s API Server",
+			"onAutoForward": "ignore"
 		}
 	},
 	"customizations": {
@@ -38,10 +43,10 @@
 			]
 		}
 	},
-	// postCreateCommand runs once after the container is created.
-	// yarn install: install Node dependencies
-	// yarn prisma-generate: generate Prisma client & Zod schemas
-	// mkdir -p storage/db: ensure the SQLite database directory exists
-	"postCreateCommand": "curl -fsSL https://bun.sh/install | bash && curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash",
+	// postCreateCommand runs once after the container is first created.
+	// Installs: bun, k3s binary (no systemd service), kubectl symlink, node deps, prisma client.
+	"postCreateCommand": "curl -fsSL https://bun.sh/install | bash && curl -sfL https://get.k3s.io | INSTALL_K3S_SKIP_ENABLE=true INSTALL_K3S_SKIP_START=true sh - && sudo ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl",
+	// postStartCommand runs every time the container starts — boots k3s and writes kube-config.config.
+	"postStartCommand": "bash .devcontainer/start-k3s.sh",
 	"remoteUser": "node"
 }

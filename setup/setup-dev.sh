@@ -81,10 +81,22 @@ wait_until_all_pods_running() {
   kubectl get pods -A
 }
 
+# Longhorn prerequisites:
+# 1. open-iscsi must be installed (provides iscsiadm)
+sudo apt-get update -qq && sudo apt-get install -y open-iscsi
+sudo service iscsid start || true
+
+# 2. Shared mount propagation on the root filesystem is required so that
+#    Longhorn can bind-mount /var/lib/longhorn inside its containers.
+#    Without this, pods fail with "not a shared mount" CreateContainerError.
+sudo mount --make-rshared /
+
 # Installation of Longhorn
 kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
 echo "Waiting for Longhorn to start..."
 wait_until_all_pods_running
+
+kubectl port-forward -n longhorn-system svc/longhorn-frontend 8000:80
 
 # Installation of Cert-Manager
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.1/cert-manager.yaml
