@@ -8,4 +8,4 @@ services:
     volumes:
       - ..:/workspace
       - ~/.ssh:/home/node/.ssh
-    env_file: devcontainer.env
+    #env_file: devcontainer.env
