@@ -1,13 +1,19 @@
 {
-	"name": "quick-stack",
-	"dockerComposeFile": "./docker.compose.yml",
-	"service": "vscode-container",
-	"workspaceFolder": "/workspace",
-	"shutdownAction": "stopCompose",
+	"name": "QuickStack",
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:20",
 	"features": {
-        "ghcr.io/devcontainers/features/common-utils:1": {},
-        "ghcr.io/oven-sh/devcontainers-features/bun:1": {}
-    },
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": true,
+			"configureZshAsDefaultShell": true
+		}
+	},
+	"forwardPorts": [3000],
+	"portsAttributes": {
+		"3000": {
+			"label": "Next.js Dev Server",
+			"onAutoForward": "notify"
+		}
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -31,5 +37,10 @@
 			]
 		}
 	},
-	"postCreateCommand": "curl -fsSL https://bun.sh/install | bash"
+	// postCreateCommand runs once after the container is created.
+	// yarn install: install Node dependencies
+	// yarn prisma-generate: generate Prisma client & Zod schemas
+	// mkdir -p storage/db: ensure the SQLite database directory exists
+	"postCreateCommand": "curl -fsSL https://bun.sh/install | bash && yarn install && yarn prisma-generate && mkdir -p storage/db",
+	"remoteUser": "node"
 }

@@ -1,11 +1,10 @@
+# This docker-compose file is kept for optional local development use.
+# For GitHub Codespaces, the devcontainer.json uses the image directly.
 version: "3"
 services:
   vscode-container:
     image: mcr.microsoft.com/devcontainers/typescript-node:20
-    #image: mcr.microsoft.com/devcontainers/base:debian
-    #image: mcr.microsoft.com/devcontainers/base:alpine
     command: /bin/sh -c "while sleep 1000; do :; done"
     volumes:
       - ..:/workspace
-      - ~/.ssh:/home/node/.ssh
     #env_file: devcontainer.env
