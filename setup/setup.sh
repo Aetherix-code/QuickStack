@@ -95,11 +95,24 @@ sudo apt-get install open-iscsi nfs-common -y
 sudo systemctl stop rpcbind.service rpcbind.socket
 sudo systemctl disable rpcbind.service rpcbind.socket
 
+# Build node label flags from NODE_LABELS env var (comma-separated key=value pairs)
+NODE_LABEL_FLAGS=""
+if [ -n "${NODE_LABELS}" ]; then
+    IFS=',' read -ra LABELS <<< "${NODE_LABELS}"
+    for label in "${LABELS[@]}"; do
+        label=$(echo "$label" | xargs) # trim whitespace
+        if [ -n "$label" ]; then
+            NODE_LABEL_FLAGS="${NODE_LABEL_FLAGS} --node-label ${label}"
+        fi
+    done
+    echo "Applying node labels: ${NODE_LABELS}"
+fi
+
 # Installation of k3s
 #curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--node-ip=192.168.1.2 --advertise-address=192.168.1.2 --node-external-ip=188.245.236.232 --flannel-iface=enp7s0" INSTALL_K3S_VERSION="v1.31.3+k3s1" sh -
 
 echo "Installing k3s with --flannel-iface=$selected_iface"
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--flannel-iface=$selected_iface" INSTALL_K3S_VERSION="v1.31.3+k3s1" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--flannel-iface=$selected_iface${NODE_LABEL_FLAGS}" INSTALL_K3S_VERSION="v1.31.3+k3s1" sh -
 # Todo: Check for Ready node, takes ~30 seconds
 sudo k3s kubectl get node
 

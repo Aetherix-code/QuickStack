@@ -37,6 +37,7 @@ export default function AddClusterNodeDialog({ children, clusterJoinToken }: { c
                             <li>Replace MASTER-IP with the IP address or hostname of the master node.</li>
                             <li>Ensure the node you want to add has access to the internet and the master node's IP address.</li>
                             <li>Run the command on the node you want to add to the cluster.</li>
+                            <li>To apply custom labels during setup, add <Code className="text-xs">NODE_LABELS=&quot;key1=value1,key2=value2&quot;</Code> before <Code className="text-xs">sh -</Code></li>
                             <li className={clusterJoinToken ? '' : 'text-red-500'}>If the token is invalid or not shown in command above, run <Code className="text-xs">sudo cat /var/lib/rancher/k3s/server/node-token</Code> on your master node to retrieve a new one.</li>
                         </ul>
                     </div>

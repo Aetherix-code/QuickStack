@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # curl -sfL https://get.quickstack.dev/setup-worker.sh | K3S_URL=<https://IP-ADDRESS-OR-HOSTNAME-OF-MASTERNODE:6443> JOIN_TOKEN=<TOKEN> sh -
+# Optional: NODE_LABELS="key1=value1,key2=value2" to apply custom labels to the node
 
 if [ -z "${K3S_URL}" ]; then
     echo "Error: Missing parameter 'K3S_URL'."
@@ -72,9 +73,22 @@ sudo apt-get install open-iscsi nfs-common -y
 sudo systemctl stop rpcbind.service rpcbind.socket
 sudo systemctl disable rpcbind.service rpcbind.socket
 
+# Build node label flags from NODE_LABELS env var (comma-separated key=value pairs)
+NODE_LABEL_FLAGS=""
+if [ -n "${NODE_LABELS}" ]; then
+    IFS=',' read -ra LABELS <<< "${NODE_LABELS}"
+    for label in "${LABELS[@]}"; do
+        label=$(echo "$label" | xargs) # trim whitespace
+        if [ -n "$label" ]; then
+            NODE_LABEL_FLAGS="${NODE_LABEL_FLAGS} --node-label ${label}"
+        fi
+    done
+    echo "Applying node labels: ${NODE_LABELS}"
+fi
+
 # Installation of k3s
 echo "Installing k3s with --flannel-iface=$selected_iface"
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--flannel-iface=$selected_iface" INSTALL_K3S_VERSION="v1.31.3+k3s1" K3S_URL=${K3S_URL} K3S_TOKEN=${JOIN_TOKEN} sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--flannel-iface=$selected_iface${NODE_LABEL_FLAGS}" INSTALL_K3S_VERSION="v1.31.3+k3s1" K3S_URL=${K3S_URL} K3S_TOKEN=${JOIN_TOKEN} sh -
 
 echo ""
 echo "-----------------------------------------------------------------------------------------------------------"

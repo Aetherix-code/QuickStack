@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useEffect } from "react";
 import { setNodeStatus } from "./actions";
 import AddClusterNodeDialog from "./add-cluster-node-dialog";
+import NodeLabelsDialog from "./node-labels-dialog";
 
 export default function NodeInfo({ nodeInfos, clusterJoinToken }: { nodeInfos: NodeInfoModel[]; clusterJoinToken?: string; }) {
 
@@ -112,6 +113,14 @@ export default function NodeInfo({ nodeInfos, clusterJoinToken }: { nodeInfos: N
                             </div>
                             {index !== 0 && <div className="flex px-4 pb-4 gap-4">
                                 <Button onClick={() => setNodeStatusClick(nodeInfo.name, !nodeInfo.schedulable)} variant="outline">{nodeInfo.schedulable ? 'Deactivate' : 'Activate'} Node</Button>
+                                <NodeLabelsDialog nodeName={nodeInfo.name} labels={nodeInfo.labels}>
+                                    <Button variant="outline">Labels{Object.keys(nodeInfo.labels).length > 0 && ` (${Object.keys(nodeInfo.labels).length})`}</Button>
+                                </NodeLabelsDialog>
+                            </div>}
+                            {index === 0 && <div className="flex px-4 pb-4 gap-4">
+                                <NodeLabelsDialog nodeName={nodeInfo.name} labels={nodeInfo.labels}>
+                                    <Button variant="outline">Labels{Object.keys(nodeInfo.labels).length > 0 && ` (${Object.keys(nodeInfo.labels).length})`}</Button>
+                                </NodeLabelsDialog>
                             </div>}
                         </div>
                     ))}

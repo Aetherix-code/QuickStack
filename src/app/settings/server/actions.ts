@@ -37,6 +37,20 @@ export const setNodeStatus = async (nodeName: string, schedulable: boolean) =>
     return new SuccessActionResult(undefined, 'Successfully updated node status.');
   });
 
+export const addNodeLabel = async (nodeName: string, key: string, value: string) =>
+  simpleAction(async () => {
+    await getAdminUserSession();
+    await clusterService.addNodeLabel(nodeName, key, value);
+    return new SuccessActionResult(undefined, `Label "${key}" added successfully.`);
+  });
+
+export const removeNodeLabel = async (nodeName: string, key: string) =>
+  simpleAction(async () => {
+    await getAdminUserSession();
+    await clusterService.removeNodeLabel(nodeName, key);
+    return new SuccessActionResult(undefined, `Label "${key}" removed successfully.`);
+  });
+
 export const applyTraefikIpPropagation = async (enableIpPreservation: boolean) =>
   simpleAction(async () => {
     await getAdminUserSession();

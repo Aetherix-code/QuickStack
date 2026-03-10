@@ -7,6 +7,23 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import longhornApiAdapter from "../adapter/longhorn-api.adapter";
 import { KubeSizeConverter } from "../../shared/utils/kubernetes-size-converter.utils";
 
+const SYSTEM_LABEL_PREFIXES = [
+    'kubernetes.io/',
+    'k3s.io/',
+    'node-role.kubernetes.io/',
+    'node.kubernetes.io/',
+    'beta.kubernetes.io/',
+];
+
+function filterCustomLabels(labels: Record<string, string> | undefined): Record<string, string> {
+    if (!labels) return {};
+    return Object.fromEntries(
+        Object.entries(labels).filter(([key]) =>
+            !SYSTEM_LABEL_PREFIXES.some(prefix => key.includes(prefix))
+        )
+    );
+}
+
 class ClusterService {
 
     async getNodeInfo(): Promise<NodeInfoModel[]> {
@@ -27,6 +44,8 @@ class ClusterService {
                     kubeletVersion: node.status?.nodeInfo?.kubeletVersion!,
                     isMasterNode: node.metadata?.labels?.['node-role.kubernetes.io/master'] === 'true'
                         || node.metadata?.labels?.['node-role.kubernetes.io/control-plane'] === 'true',
+
+                    labels: filterCustomLabels(node.metadata?.labels),
 
                     memoryOk: node.status?.conditions?.filter((condition) => condition.type === 'MemoryPressure')[0].status === 'False',
                     memoryStatusText: node.status?.conditions?.filter((condition) => condition.type === 'MemoryPressure')[0].message,
@@ -68,6 +87,32 @@ class ClusterService {
                     }
                 }
             }
+        } finally {
+            revalidateTag(Tags.nodeInfos());
+        }
+    }
+
+    async addNodeLabel(nodeName: string, key: string, value: string) {
+        try {
+            await k3s.core.patchNode(
+                nodeName,
+                { metadata: { labels: { [key]: value } } },
+                undefined, undefined, undefined, undefined, undefined,
+                { headers: { 'Content-Type': 'application/strategic-merge-patch+json' } }
+            );
+        } finally {
+            revalidateTag(Tags.nodeInfos());
+        }
+    }
+
+    async removeNodeLabel(nodeName: string, key: string) {
+        try {
+            await k3s.core.patchNode(
+                nodeName,
+                [{ op: 'remove', path: `/metadata/labels/${key.replace(/\//g, '~1')}` }],
+                undefined, undefined, undefined, undefined, undefined,
+                { headers: { 'Content-Type': 'application/json-patch+json' } }
+            );
         } finally {
             revalidateTag(Tags.nodeInfos());
         }
