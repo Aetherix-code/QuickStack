@@ -53,6 +53,8 @@ export const deleteApp = async (appId: string) =>
         if (!UserGroupUtils.sessionCanDeleteAppsForProject(session, app.projectId)) {
             throw new ServiceException("You are not allowed to delete apps in this project.");
         }
+        // Cleanup GitHub webhook before deleting
+        await appService.cleanupGitHubWebhook(appId, session.email);
         // First delete external services wich might be running
         await dbGateService.deleteToolForAppIfExists(appId);
         await phpMyAdminService.deleteToolForAppIfExists(appId);

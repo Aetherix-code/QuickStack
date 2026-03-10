@@ -18,35 +18,35 @@ export interface GitHubBranch {
 }
 
 class GitHubService {
-    
+
     async getUserRepos(accessToken: string): Promise<GitHubRepo[]> {
         const octokit = new Octokit({ auth: accessToken });
-        
+
         const { data } = await octokit.repos.listForAuthenticatedUser({
             sort: 'updated',
             per_page: 100,
             affiliation: 'owner,collaborator,organization_member'
         });
-        
+
         return data as GitHubRepo[];
     }
 
     async getRepoBranches(accessToken: string, owner: string, repo: string): Promise<GitHubBranch[]> {
         const octokit = new Octokit({ auth: accessToken });
-        
+
         const { data } = await octokit.repos.listBranches({
             owner,
             repo,
             per_page: 100
         });
-        
+
         return data as GitHubBranch[];
     }
 
-    async createWebhook(accessToken: string, owner: string, repo: string, webhookUrl: string): Promise<void> {
+    async createWebhook(accessToken: string, owner: string, repo: string, webhookUrl: string): Promise<number> {
         const octokit = new Octokit({ auth: accessToken });
-        
-        await octokit.repos.createWebhook({
+
+        const { data } = await octokit.repos.createWebhook({
             owner,
             repo,
             config: {
@@ -57,11 +57,13 @@ class GitHubService {
             events: ['push'],
             active: true
         });
+
+        return data.id;
     }
 
     async deleteWebhook(accessToken: string, owner: string, repo: string, webhookId: number): Promise<void> {
         const octokit = new Octokit({ auth: accessToken });
-        
+
         await octokit.repos.deleteWebhook({
             owner,
             repo,
@@ -71,12 +73,12 @@ class GitHubService {
 
     async getWebhooks(accessToken: string, owner: string, repo: string): Promise<any[]> {
         const octokit = new Octokit({ auth: accessToken });
-        
+
         const { data } = await octokit.repos.listWebhooks({
             owner,
             repo
         });
-        
+
         return data;
     }
 
@@ -84,7 +86,7 @@ class GitHubService {
         // Parse GitHub URLs like: https://github.com/owner/repo or git@github.com:owner/repo.git
         const httpsMatch = repoUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
         const sshMatch = repoUrl.match(/github\.com:([^\/]+)\/([^\/\.]+)/);
-        
+
         const match = httpsMatch || sshMatch;
         if (match) {
             return {
@@ -92,7 +94,7 @@ class GitHubService {
                 repo: match[2].replace('.git', '')
             };
         }
-        
+
         return null;
     }
 }

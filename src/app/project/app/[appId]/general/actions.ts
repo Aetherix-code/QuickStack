@@ -15,18 +15,40 @@ export const saveGeneralAppSourceInfo = async (prevState: any, inputData: AppSou
     if (inputData.sourceType === 'GIT') {
         return saveFormAction(inputData, appSourceInfoGitZodModel, async (validatedData) => {
             await isAuthorizedWriteForApp(appId);
+            const session = await getAuthUserSession();
             const existingApp = await appService.getById(appId);
+
+            // If switching from CONTAINER to GIT or changing repo, cleanup old webhook
+            if (existingApp.sourceType === 'CONTAINER' || existingApp.gitUrl !== validatedData.gitUrl) {
+                await appService.cleanupGitHubWebhook(appId, session.email);
+            }
+
             await appService.save({
                 ...existingApp,
                 ...validatedData,
                 sourceType: 'GIT',
                 id: appId,
             });
+
+            // Setup GitHub webhook for auto-deploy on push
+            try {
+                await appService.setupGitHubWebhook(appId, session.email);
+            } catch (e: any) {
+                // Don't fail the save if webhook setup fails — inform the user
+                return new SuccessActionResult(undefined, `Source saved, but webhook setup failed: ${e.message}`);
+            }
         });
     } else if (inputData.sourceType === 'CONTAINER') {
         return saveFormAction(inputData, appSourceInfoContainerZodModel, async (validatedData) => {
             await isAuthorizedWriteForApp(appId);
+            const session = await getAuthUserSession();
             const existingApp = await appService.getById(appId);
+
+            // Cleanup GitHub webhook when switching away from GIT
+            if (existingApp.sourceType === 'GIT') {
+                await appService.cleanupGitHubWebhook(appId, session.email);
+            }
+
             await appService.save({
                 ...existingApp,
                 ...validatedData,
@@ -101,7 +123,8 @@ export const saveGeneralAppNodeAffinity = async (prevState: any, inputData: AppN
 
 export const getCurrentUserGitHubConnection = async () =>
     simpleAction(async () => {
-        const user = await getAuthUserSession();
+        const session = await getAuthUserSession();
+        const user = await userService.getUserByEmail(session.email);
         return new SuccessActionResult({
             hasGitHub: !!user.githubAccessToken,
             githubUsername: user.githubUsername

@@ -30,9 +30,9 @@ export default async function ProjectPage() {
             ]} />
             <ProfilePasswordChange />
             <ToTpSettings totpEnabled={data.twoFaEnabled} />
-            <GitHubConnectionSettings 
-                githubUsername={data.githubUsername} 
-                githubConnected={!!data.githubAccessToken} 
+            <GitHubConnectionSettings
+                githubUsername={data.githubUsername}
+                githubConnected={!!data.githubAccessToken}
             />
         </div>
     )

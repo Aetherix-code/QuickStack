@@ -9,6 +9,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import bcrypt from "bcrypt";
 import userService from "@/server/services/user.service";
+import { revalidatePath } from "next/cache";
 
 
 const saltRounds = 10;
@@ -60,7 +61,7 @@ export const authOptions: NextAuthOptions = {
                 clientSecret: process.env.GITHUB_CLIENT_SECRET,
                 authorization: {
                     params: {
-                        scope: 'read:user user:email repo'
+                        scope: 'read:user user:email repo admin:repo_hook'
                     }
                 }
             })
@@ -84,6 +85,7 @@ export const authOptions: NextAuthOptions = {
                             githubId: account.providerAccountId,
                         }
                     });
+                    revalidatePath('/settings/profile');
                 }
             }
             return true;

@@ -6,8 +6,6 @@ export const appTypeZodModel = z.enum(["APP", "POSTGRES", "MYSQL", "MARIADB", "M
 export const appSourceInfoGitZodModel = z.object({
   gitUrl: z.string().trim(),
   gitBranch: z.string().trim(),
-  gitUsername: z.string().trim().nullish(),
-  gitToken: z.string().trim().nullish(),
   dockerfilePath: z.string().trim(),
   buildMethod: z.enum(["DOCKERFILE", "NIXPACKS"]).default("DOCKERFILE"),
 });
@@ -28,8 +26,6 @@ export const appSourceInfoInputZodModel = z.object({
 
   gitUrl: z.string().trim().nullish(),
   gitBranch: z.string().trim().nullish(),
-  gitUsername: z.string().trim().nullish(),
-  gitToken: z.string().trim().nullish(),
   dockerfilePath: z.string().trim().nullish(),
   buildMethod: z.enum(["DOCKERFILE", "NIXPACKS"]).nullish(),
 });

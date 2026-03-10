@@ -13,6 +13,9 @@ import svcService from "./svc.service";
 import deploymentLogService, { dlog } from "./deployment-logs.service";
 import crypto from "crypto";
 import networkPolicyService from "./network-policy.service";
+import githubService from "./github.service";
+import paramService, { ParamService } from "./param.service";
+import userService from "./user.service";
 
 class AppService {
 
@@ -528,6 +531,74 @@ class AppService {
             return 0;
         });
         return apps;
+    }
+
+    async setupGitHubWebhook(appId: string, userEmail: string) {
+        const app = await this.getById(appId);
+        if (!app.gitUrl) {
+            return;
+        }
+
+        const parsed = githubService.parseRepoUrl(app.gitUrl);
+        if (!parsed) {
+            return;
+        }
+
+        const user = await userService.getUserByEmail(userEmail);
+        if (!user.githubAccessToken) {
+            return;
+        }
+
+        // Ensure app has a webhookId
+        if (!app.webhookId) {
+            const randomBytes = crypto.randomBytes(32).toString('hex');
+            await this.save({ ...app, webhookId: randomBytes });
+            app.webhookId = randomBytes;
+        }
+
+        const hostname = await paramService.getOrUndefined(ParamService.QS_SERVER_HOSTNAME);
+        if (!hostname?.value) {
+            throw new ServiceException('Server hostname is not configured. Please set it in Settings to enable GitHub webhooks.');
+        }
+
+        const webhookUrl = `https://${hostname.value}/api/v1/webhook/deploy?id=${app.webhookId}`;
+
+        // Clean up the old GitHub webhook if one exists
+        if (app.githubWebhookId) {
+            try {
+                await githubService.deleteWebhook(user.githubAccessToken, parsed.owner, parsed.repo, app.githubWebhookId);
+            } catch {
+                // Ignore errors (webhook may already be deleted on GitHub side)
+            }
+        }
+
+        const githubWebhookId = await githubService.createWebhook(user.githubAccessToken, parsed.owner, parsed.repo, webhookUrl);
+        await this.save({ ...app, githubWebhookId });
+    }
+
+    async cleanupGitHubWebhook(appId: string, userEmail: string) {
+        const app = await this.getById(appId);
+        if (!app.githubWebhookId || !app.gitUrl) {
+            return;
+        }
+
+        const parsed = githubService.parseRepoUrl(app.gitUrl);
+        if (!parsed) {
+            return;
+        }
+
+        const user = await userService.getUserByEmail(userEmail);
+        if (!user.githubAccessToken) {
+            return;
+        }
+
+        try {
+            await githubService.deleteWebhook(user.githubAccessToken, parsed.owner, parsed.repo, app.githubWebhookId);
+        } catch {
+            // Ignore errors (webhook may already be deleted on GitHub side)
+        }
+
+        await this.save({ ...app, githubWebhookId: null });
     }
 }
 
