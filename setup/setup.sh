@@ -175,7 +175,7 @@ spec:
       serviceAccountName: qs-service-account
       containers:
       - name: quickstack-container
-        image: quickstack/quickstack:latest
+        image: aetherixcode/quickstack:latest
         env:
         - name: START_MODE
           value: "setup"

@@ -308,7 +308,7 @@ class QuickStackService {
                         containers: [
                             {
                                 name: this.QUICKSTACK_DEPLOYMENT_NAME,
-                                image: `quickstack/quickstack:${imageTag}`,
+                                image: `aetherixcode/quickstack:${imageTag}`,
                                 imagePullPolicy: 'Always',
                                 env: [
                                     {

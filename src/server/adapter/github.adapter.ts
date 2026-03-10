@@ -10,7 +10,7 @@ class GithubAdapter {
     private readonly GITHUB_API_BASE_URL = 'https://api.github.com';
 
     public async getLatestQuickStackVersion(): Promise<GithubReleaseInfo> {
-        const response = await fetch(`${this.GITHUB_API_BASE_URL}/repos/biersoeckli/QuickStack/releases/latest`, {
+        const response = await fetch(`${this.GITHUB_API_BASE_URL}/repos/aetherix-code/QuickStack/releases/latest`, {
             cache: 'no-cache',
             method: 'GET',
             headers: {
