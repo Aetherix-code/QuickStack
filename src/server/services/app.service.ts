@@ -32,6 +32,15 @@ class AppService {
 -----------------------------------------------`, false);
 
             if (app.sourceType === 'GIT') {
+                // Ensure GitHub webhook is up-to-date for GitHub-connected apps
+                if (userEmail) {
+                    try {
+                        await this.setupGitHubWebhook(appId, userEmail);
+                    } catch (e: any) {
+                        await dlog(deploymentId, `Warning: GitHub webhook setup failed: ${e.message}`);
+                    }
+                }
+
                 // first make build (userEmail used for GitHub private repo via connected account)
                 const [buildJobName, gitCommitHash, buildPromise] = await buildService.buildApp(deploymentId, app, forceBuild, userEmail);
                 buildPromise.then(async () => {
