@@ -29,7 +29,7 @@ class ClusterService {
     async getNodeInfo(): Promise<NodeInfoModel[]> {
         return await unstable_cache(async () => {
             const nodeReturnInfo = await k3s.core.listNode();
-            return nodeReturnInfo.body.items.map((node) => {
+            const nodes = nodeReturnInfo.body.items.map((node) => {
                 return {
                     name: node.metadata?.name!,
                     status: node.status?.conditions?.filter((condition) => condition.type === 'Ready')[0].status!,
@@ -56,6 +56,9 @@ class ClusterService {
                     schedulable: !node.spec?.unschedulable
                 }
             });
+            // Ensure master node is always first
+            nodes.sort((a, b) => (a.isMasterNode === b.isMasterNode ? 0 : a.isMasterNode ? -1 : 1));
+            return nodes;
         },
             [Tags.nodeInfos()], {
             revalidate: 10,
