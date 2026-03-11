@@ -17,7 +17,7 @@ import paramService, { ParamService } from "./param.service";
 import userService from "./user.service";
 
 const buildkitImage = "moby/buildkit:master";
-const nixpacksInitImage = "alpine:3.19";
+const nixpacksInitImage = "ghcr.io/railwayapp/nixpacks:latest";
 
 function isGitHubUrl(gitUrl: string): boolean {
     return /^https?:\/\/([^/]+@)?(github\.com|api\.github\.com)/.test(gitUrl) || gitUrl.includes('github.com');
@@ -169,16 +169,13 @@ class BuildService {
         const contextSubdir = (contextPaths.folderPath || '').replace(/^\.\/?/, '');
         const branch = app.gitBranch || 'main';
 
-        // Init: Alpine has no /bin/bash by default. Use /bin/sh to install bash, then exec bash for the rest (nixpacks install script needs bash).
-        const initScriptBash = [
+        // nixpacks is pre-installed in the image; only git may need to be added
+        const initScript = [
             'set -e',
-            'echo "==> Installing nixpacks..."',
-            'curl -sSL https://raw.githubusercontent.com/railwayapp/nixpacks/main/install.sh | bash -s -- -y -b /usr/local/bin',
-            'nixpacks --version || (echo "ERROR: nixpacks not found after install" && exit 1)',
-            'echo "==> Cloning repository..."',
-            'git clone "$GIT_URL" /workspace/repo',
+            'which git > /dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq --no-install-recommends git > /dev/null)',
+            'echo "==> Cloning repository (shallow)..."',
+            'git clone --depth 1 --single-branch --branch "$GIT_BRANCH" "$GIT_URL" /workspace/repo',
             'cd /workspace/repo',
-            'git checkout "$GIT_BRANCH"',
             'if [ -n "$CONTEXT_SUBDIR" ]; then cd "$CONTEXT_SUBDIR"; fi',
             'echo "==> Running nixpacks build..."',
             'nixpacks build . --out /workspace/out',
@@ -187,8 +184,6 @@ class BuildService {
             '[ -f Dockerfile ] || [ -f .nixpacks/Dockerfile ] || (echo "ERROR: No Dockerfile in nixpacks output. Contents:" && ls -laR /workspace/out && exit 1)',
             'echo "==> Nixpacks build finished successfully"'
         ].join(' && ');
-        // Single-quote for sh so ( ) and " inside the bash script are not interpreted by sh. Escape any ' in script as '\''
-        const initScript = `apk add --no-cache git curl bash tar gzip && exec /bin/bash -c '${initScriptBash.replace(/'/g, "'\\''")}'`;
 
         // Context = app source dir with .nixpacks/ (and Dockerfile inside it in Nixpacks 1.41+) copied from nixpacks --out.
         const nixpacksContextPath = contextSubdir ? `/workspace/repo/${contextSubdir}` : '/workspace/repo';
