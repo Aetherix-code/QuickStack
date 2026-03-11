@@ -58,8 +58,6 @@ jobs:
             VERSION_ARG=${{ github.ref_name }}
           tags: |
             aetherixcode/quickstack:${{ github.ref_name }}-amd64
-          cache-from: type=gha,scope=amd64
-          cache-to: type=gha,mode=max,scope=amd64
 
   build-arm64:
     runs-on: ubuntu-24.04-arm
@@ -89,8 +87,6 @@ jobs:
             VERSION_ARG=${{ github.ref_name }}
           tags: |
             aetherixcode/quickstack:${{ github.ref_name }}-arm64
-          cache-from: type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=arm64
 
   merge-manifests:
     runs-on: ubuntu-latest
