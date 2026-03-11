@@ -3,10 +3,10 @@
 import { Button } from "@/components/ui/button"
 import { cn } from "@/frontend/utils/utils";
 import { AlertCircle } from "lucide-react"
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 
-const inter = Inter({
-    subsets: ["latin"],
+const inter = localFont({
+    src: "../../public/fonts/inter.woff2",
     variable: "--font-sans",
 });
 

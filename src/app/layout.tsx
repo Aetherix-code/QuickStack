@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { cn } from "@/frontend/utils/utils"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css";
@@ -15,8 +15,8 @@ import { InputDialog } from "@/components/custom/input-dialog";
 import userGroupService from "@/server/services/user-group.service";
 import PodsStatusPollingProvider from "@/components/custom/pods-status-polling-provider";
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: "../../public/fonts/inter.woff2",
   variable: "--font-sans",
 });
 

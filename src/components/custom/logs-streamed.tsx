@@ -6,11 +6,11 @@ import {
     HoverCardContent,
     HoverCardTrigger,
 } from "@/components/ui/hover-card"
-import { Source_Code_Pro } from "next/font/google";
+import localFont from "next/font/local";
 import { cn } from "@/frontend/utils/utils";
 
-const sourceCodePro = Source_Code_Pro({
-    subsets: ["latin"],
+const sourceCodePro = localFont({
+    src: "../../../public/fonts/source-code-pro.woff2",
     variable: "--font-sans",
 });
 
