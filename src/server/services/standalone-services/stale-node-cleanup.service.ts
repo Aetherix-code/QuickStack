@@ -1,8 +1,6 @@
 import scheduleService from "./schedule.service";
 import k3s from "../../adapter/kubernetes-api.adapter";
 import paramService, { ParamService } from "../param.service";
-import { revalidateTag } from "next/cache";
-import { Tags } from "../../utils/cache-tag-generator.utils";
 
 const JOB_NAME = 'stale-node-cleanup';
 const DEFAULT_THRESHOLD_MINUTES = 10;
@@ -57,7 +55,6 @@ class StaleNodeCleanupService {
         }
 
         if (removedCount > 0) {
-            revalidateTag(Tags.nodeInfos());
             console.log(`[${StaleNodeCleanupService.name}] Removed ${removedCount} stale node(s)`);
         }
     }
