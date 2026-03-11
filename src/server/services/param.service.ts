@@ -14,6 +14,8 @@ export class ParamService {
     static readonly PUBLIC_IPV4_ADDRESS = 'publicIpv4Address';
     static readonly QS_SYSTEM_BACKUP_LOCATION = Constants.QS_SYSTEM_BACKUP_LOCATION_PARAM_KEY;
     static readonly K3S_JOIN_TOKEN = Constants.K3S_JOIN_TOKEN;
+    static readonly GITHUB_CLIENT_ID = 'githubClientId';
+    static readonly GITHUB_CLIENT_SECRET = 'githubClientSecret';
 
     async getUncached(name: string) {
         return await dataAccess.client.parameter.findFirstOrThrow({

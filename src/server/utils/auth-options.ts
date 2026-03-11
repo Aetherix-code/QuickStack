@@ -10,11 +10,17 @@ import GitHubProvider from "next-auth/providers/github";
 import bcrypt from "bcrypt";
 import userService from "@/server/services/user.service";
 import { revalidatePath } from "next/cache";
+import paramService, { ParamService } from "@/server/services/param.service";
 
 
 const saltRounds = 10;
 
-export const authOptions: NextAuthOptions = {
+export async function getAuthOptions(): Promise<NextAuthOptions> {
+    // Read GitHub OAuth credentials from DB, fall back to env vars
+    const githubClientId = await paramService.getString(ParamService.GITHUB_CLIENT_ID) || process.env.GITHUB_CLIENT_ID;
+    const githubClientSecret = await paramService.getString(ParamService.GITHUB_CLIENT_SECRET) || process.env.GITHUB_CLIENT_SECRET;
+
+    return {
     session: {
         strategy: "jwt",
     },
@@ -23,12 +29,7 @@ export const authOptions: NextAuthOptions = {
     },
     providers: [
         CredentialsProvider({
-            // The name to display on the sign in form (e.g. "Sign in with...")
             name: "Credentials",
-            // `credentials` is used to generate a form on the sign in page.
-            // You can specify which fields should be submitted, by adding keys to the `credentials` object.
-            // e.g. domain, username, password, 2FA token, etc.
-            // You can pass any HTML attribute to the <input> tag through the object.
             credentials: {
                 username: { label: "Username", type: "text" },
                 password: { label: "Password", type: "password" },
@@ -55,10 +56,10 @@ export const authOptions: NextAuthOptions = {
                 return mapUser(user);
             }
         }),
-        ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? [
+        ...(githubClientId && githubClientSecret ? [
             GitHubProvider({
-                clientId: process.env.GITHUB_CLIENT_ID,
-                clientSecret: process.env.GITHUB_CLIENT_SECRET,
+                clientId: githubClientId,
+                clientSecret: githubClientSecret,
                 authorization: {
                     params: {
                         scope: 'read:user user:email repo admin:repo_hook'
@@ -92,7 +93,8 @@ export const authOptions: NextAuthOptions = {
         },
     },
     adapter: PrismaAdapter(dataAccess.client),
-};
+    };
+}
 
 function mapUser(user: User) {
     return {

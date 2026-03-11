@@ -3,6 +3,7 @@
 import { getAdminUserSession, getAuthUserSession, saveFormAction, simpleAction, fileUploadAction } from "@/server/utils/action-wrapper.utils";
 import paramService, { ParamService } from "@/server/services/param.service";
 import { QsIngressSettingsModel, qsIngressSettingsZodModel } from "@/shared/model/qs-settings.model";
+import { QsGitHubSettingsModel, qsGitHubSettingsZodModel } from "@/shared/model/qs-github-settings.model";
 import { QsLetsEncryptSettingsModel, qsLetsEncryptSettingsZodModel } from "@/shared/model/qs-letsencrypt-settings.model";
 import quickStackService from "@/server/services/qs.service";
 import { ServerActionResult, SuccessActionResult } from "@/shared/model/server-action-error-return.model";
@@ -87,6 +88,21 @@ export const updateIngressSettings = async (prevState: any, inputData: QsIngress
     await quickStackService.createOrUpdateIngress(validatedData.serverUrl);
   });
 
+
+export const updateGitHubSettings = async (prevState: any, inputData: QsGitHubSettingsModel) =>
+  saveFormAction(inputData, qsGitHubSettingsZodModel, async (validatedData) => {
+    await getAdminUserSession();
+
+    await paramService.save({
+      name: ParamService.GITHUB_CLIENT_ID,
+      value: validatedData.githubClientId
+    });
+
+    await paramService.save({
+      name: ParamService.GITHUB_CLIENT_SECRET,
+      value: validatedData.githubClientSecret
+    });
+  });
 
 export const updatePublicIpv4Settings = async (prevState: any, inputData: QsPublicIpv4SettingsModel) =>
   saveFormAction(inputData, qsPublicIpv4SettingsZodModel, async (validatedData) => {

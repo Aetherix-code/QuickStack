@@ -9,6 +9,7 @@ import { Constants } from "@/shared/utils/constants";
 import QuickStackRegistrySettings from "./qs-registry-settings";
 import s3TargetService from "@/server/services/s3-target.service";
 import QuickStackPublicIpSettings from "./qs-public-ip-settings";
+import QuickStackGitHubSettings from "./qs-github-settings";
 import QuickStackSystemBackupSettings from "./qs-system-backup-settings";
 import QuickStackTraefikSettings from "./qs-traefik-settings";
 import BreadcrumbSetter from "@/components/breadcrumbs-setter";
@@ -42,7 +43,9 @@ export default async function ProjectPage({
         ipv4Address,
         systemBackupLocation,
         useCanaryChannel,
-        clusterJoinToken
+        clusterJoinToken,
+        githubClientId,
+        githubClientSecret
     ] = await Promise.all([
         paramService.getString(ParamService.QS_SERVER_HOSTNAME, ''),
         paramService.getBoolean(ParamService.DISABLE_NODEPORT_ACCESS, false),
@@ -51,7 +54,9 @@ export default async function ProjectPage({
         paramService.getString(ParamService.PUBLIC_IPV4_ADDRESS),
         paramService.getString(ParamService.QS_SYSTEM_BACKUP_LOCATION, Constants.QS_SYSTEM_BACKUP_DEACTIVATED),
         paramService.getBoolean(ParamService.USE_CANARY_CHANNEL, false),
-        paramService.getString(ParamService.K3S_JOIN_TOKEN)
+        paramService.getString(ParamService.K3S_JOIN_TOKEN),
+        paramService.getString(ParamService.GITHUB_CLIENT_ID, ''),
+        paramService.getString(ParamService.GITHUB_CLIENT_SECRET, '')
     ]);
 
     const [
@@ -104,6 +109,7 @@ export default async function ProjectPage({
                     <div className="grid gap-6">
                         <QuickStackIngressSettings disableNodePortAccess={disableNodePortAccess!} serverUrl={serverUrl!} />
                         <QuickStackPublicIpSettings publicIpv4={ipv4Address} />
+                        <QuickStackGitHubSettings githubClientId={githubClientId!} githubClientSecret={githubClientSecret!} />
                     </div>
                 </TabsContent>
 

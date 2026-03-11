@@ -9,7 +9,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { saveGeneralAppNodeAffinity } from "./actions";
 import { useFormState } from "react-dom";
 import { ServerActionResult } from "@/shared/model/server-action-error-return.model";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppExtendedModel } from "@/shared/model/app-extended.model";
 import { AppNodeAffinityModel, appNodeAffinityZodModel } from "@/shared/model/app-node-affinity.model";
@@ -17,7 +17,92 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NodeInfoModel } from "@/shared/model/node-info.model";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ChevronsUpDown, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/frontend/utils/utils";
+
+function LabelCombobox({
+    value,
+    onChange,
+    suggestions,
+    placeholder,
+    disabled,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    suggestions: string[];
+    placeholder: string;
+    disabled?: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState('');
+
+    const filtered = suggestions.filter(s =>
+        s.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    disabled={disabled}
+                    className="w-full justify-between font-normal"
+                >
+                    <span className="truncate">{value || placeholder}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={false}>
+                    <CommandInput
+                        placeholder={`Search or type custom...`}
+                        value={search}
+                        onValueChange={setSearch}
+                    />
+                    <CommandList>
+                        <CommandEmpty>
+                            {search ? (
+                                <button
+                                    type="button"
+                                    className="w-full text-left px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded"
+                                    onClick={() => {
+                                        onChange(search);
+                                        setSearch('');
+                                        setOpen(false);
+                                    }}
+                                >
+                                    Use custom: &quot;{search}&quot;
+                                </button>
+                            ) : (
+                                'No suggestions available.'
+                            )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                            {filtered.map((suggestion) => (
+                                <CommandItem
+                                    key={suggestion}
+                                    value={suggestion}
+                                    onSelect={() => {
+                                        onChange(suggestion);
+                                        setSearch('');
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check className={cn("mr-2 h-4 w-4", value === suggestion ? "opacity-100" : "opacity-0")} />
+                                    {suggestion}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
 
 
 export default function GeneralAppNodeAffinity({ app, readonly, nodesInfo }: {
@@ -59,6 +144,25 @@ export default function GeneralAppNodeAffinity({ app, readonly, nodesInfo }: {
     }, [state]);
 
     const affinityType = form.watch('nodeAffinityType');
+
+    // Collect available label keys and values from cluster nodes
+    const { availableKeys, valuesByKey } = useMemo(() => {
+        const keySet = new Set<string>();
+        const valMap = new Map<string, Set<string>>();
+        for (const node of nodesInfo) {
+            for (const [k, v] of Object.entries(node.labels || {})) {
+                keySet.add(k);
+                if (!valMap.has(k)) valMap.set(k, new Set());
+                valMap.get(k)!.add(v);
+            }
+        }
+        return {
+            availableKeys: Array.from(keySet).sort(),
+            valuesByKey: Object.fromEntries(
+                Array.from(valMap.entries()).map(([k, vs]) => [k, Array.from(vs).sort()])
+            ) as Record<string, string[]>,
+        };
+    }, [nodesInfo]);
 
     return <>
         <Card>
@@ -137,9 +241,11 @@ export default function GeneralAppNodeAffinity({ app, readonly, nodesInfo }: {
                                                 <FormItem className="flex-1">
                                                     <FormLabel>Label Key</FormLabel>
                                                     <FormControl>
-                                                        <Input
+                                                        <LabelCombobox
+                                                            value={field.value}
+                                                            onChange={field.onChange}
+                                                            suggestions={availableKeys}
                                                             placeholder="e.g., disktype"
-                                                            {...field}
                                                             disabled={readonly}
                                                         />
                                                     </FormControl>
@@ -150,19 +256,25 @@ export default function GeneralAppNodeAffinity({ app, readonly, nodesInfo }: {
                                         <FormField
                                             control={form.control}
                                             name={`nodeAffinityLabelSelector.${index}.value`}
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <FormLabel>Label Value</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            placeholder="e.g., ssd"
-                                                            {...field}
-                                                            disabled={readonly}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
+                                            render={({ field }) => {
+                                                const selectedKey = form.watch(`nodeAffinityLabelSelector.${index}.key`);
+                                                const valueSuggestions = selectedKey && valuesByKey[selectedKey] ? valuesByKey[selectedKey] : [];
+                                                return (
+                                                    <FormItem className="flex-1">
+                                                        <FormLabel>Label Value</FormLabel>
+                                                        <FormControl>
+                                                            <LabelCombobox
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                suggestions={valueSuggestions}
+                                                                placeholder="e.g., ssd"
+                                                                disabled={readonly}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                );
+                                            }}
                                         />
                                         {affinityType === 'PREFERRED' && (
                                             <FormField
@@ -210,9 +322,11 @@ export default function GeneralAppNodeAffinity({ app, readonly, nodesInfo }: {
                                                 • {node.name} ({node.ip}) {!node.schedulable && '- Inactive'}
                                             </div>
                                         ))}
-                                        <div className="mt-2 text-xs">
-                                            Tip: Use <code className="bg-muted px-1 rounded">kubectl get nodes --show-labels</code> to see node labels
-                                        </div>
+                                        {availableKeys.length > 0 && (
+                                            <div className="mt-2 text-xs">
+                                                Tip: Use the dropdowns above to select from existing node labels.
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

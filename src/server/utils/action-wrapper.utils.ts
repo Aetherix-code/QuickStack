@@ -5,7 +5,7 @@ import { ZodRawShape, ZodObject, objectUtil, baseObjectOutputType, z, ZodType } 
 import { redirect } from "next/navigation";
 import { ServerActionResult } from "@/shared/model/server-action-error-return.model";
 import { FormValidationException } from "@/shared/model/form-validation-exception.model";
-import { authOptions } from "@/server/utils/auth-options";
+import { getAuthOptions } from "@/server/utils/auth-options";
 import { NextResponse } from "next/server";
 import userGroupService from "../services/user-group.service";
 import { RolePermissionEnum } from "@/shared/model/role-extended.model.ts";
@@ -16,7 +16,7 @@ import { UserGroupUtils } from "../../shared/utils/role.utils";
  * use getAuthUserSession() if you want to throw an error if no user is logged in
  */
 export async function getUserSession(): Promise<UserSession | null> {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(await getAuthOptions());
     if (!session) {
         return null;
     }
