@@ -118,12 +118,29 @@ class ClusterService {
         }
     }
 
+    async deleteNode(nodeName: string) {
+        try {
+            await k3s.core.deleteNode(nodeName);
+        } finally {
+            revalidateTag(Tags.nodeInfos());
+        }
+    }
+
     async getNodeResourceUsage(): Promise<NodeResourceModel[]> {
         const topNodes = await k8s.topNodes(k3s.core);
 
+        // Filter out NotReady nodes — they have no metrics and would cause errors
+        const nodeList = await k3s.core.listNode();
+        const readyNodeNames = new Set(
+            nodeList.body.items
+                .filter(node => node.status?.conditions?.find(c => c.type === 'Ready')?.status === 'True')
+                .map(node => node.metadata?.name!)
+        );
+        const readyTopNodes = topNodes.filter(node => readyNodeNames.has(node.Node.metadata?.name!));
+
         const metricsData: k8s.NodeMetricsList = await k3s.metrics.getNodeMetrics();
 
-        return await Promise.all(topNodes.map(async (node) => {
+        return await Promise.all(readyTopNodes.map(async (node) => {
             const nodeMetrics = metricsData.items.filter((metric) => metric.metadata.name === node.Node.metadata?.name)
                 .map((metric) => {
                     return {

@@ -16,6 +16,8 @@ export class ParamService {
     static readonly K3S_JOIN_TOKEN = Constants.K3S_JOIN_TOKEN;
     static readonly GITHUB_CLIENT_ID = 'githubClientId';
     static readonly GITHUB_CLIENT_SECRET = 'githubClientSecret';
+    static readonly AUTO_CLEANUP_STALE_NODES = 'autoCleanupStaleNodes';
+    static readonly STALE_NODE_THRESHOLD_MINUTES = 'staleNodeThresholdMinutes';
 
     async getUncached(name: string) {
         return await dataAccess.client.parameter.findFirstOrThrow({

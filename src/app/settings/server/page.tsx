@@ -26,6 +26,7 @@ import quickStackUpdateService from "@/server/services/qs-update.service";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import clusterService from "@/server/services/node.service";
 import NodeInfo from "./nodeInfo";
+import QuickStackStaleNodeCleanupSettings from "./qs-stale-node-cleanup-settings";
 
 export default async function ProjectPage({
     searchParams
@@ -45,7 +46,9 @@ export default async function ProjectPage({
         useCanaryChannel,
         clusterJoinToken,
         githubClientId,
-        githubClientSecret
+        githubClientSecret,
+        autoCleanupStaleNodes,
+        staleNodeThresholdMinutes
     ] = await Promise.all([
         paramService.getString(ParamService.QS_SERVER_HOSTNAME, ''),
         paramService.getBoolean(ParamService.DISABLE_NODEPORT_ACCESS, false),
@@ -56,7 +59,9 @@ export default async function ProjectPage({
         paramService.getBoolean(ParamService.USE_CANARY_CHANNEL, false),
         paramService.getString(ParamService.K3S_JOIN_TOKEN),
         paramService.getString(ParamService.GITHUB_CLIENT_ID, ''),
-        paramService.getString(ParamService.GITHUB_CLIENT_SECRET, '')
+        paramService.getString(ParamService.GITHUB_CLIENT_SECRET, ''),
+        paramService.getBoolean(ParamService.AUTO_CLEANUP_STALE_NODES, false),
+        paramService.getNumber(ParamService.STALE_NODE_THRESHOLD_MINUTES, 10)
     ]);
 
     const [
@@ -129,6 +134,7 @@ export default async function ProjectPage({
 
                 <TabsContent value="cluster" className="space-y-4">
                     <NodeInfo nodeInfos={nodeInfo} clusterJoinToken={clusterJoinToken} />
+                    <QuickStackStaleNodeCleanupSettings enabled={!!autoCleanupStaleNodes} thresholdMinutes={staleNodeThresholdMinutes ?? 10} />
                 </TabsContent>
                 <TabsContent value="updates" className="space-y-4">
                     <div className="grid gap-6">

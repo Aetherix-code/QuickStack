@@ -4,6 +4,7 @@ import { getAdminUserSession, getAuthUserSession, saveFormAction, simpleAction, 
 import paramService, { ParamService } from "@/server/services/param.service";
 import { QsIngressSettingsModel, qsIngressSettingsZodModel } from "@/shared/model/qs-settings.model";
 import { QsGitHubSettingsModel, qsGitHubSettingsZodModel } from "@/shared/model/qs-github-settings.model";
+import { StaleNodeCleanupSettingsModel, staleNodeCleanupSettingsZodModel } from "@/shared/model/stale-node-cleanup-settings.model";
 import { QsLetsEncryptSettingsModel, qsLetsEncryptSettingsZodModel } from "@/shared/model/qs-letsencrypt-settings.model";
 import quickStackService from "@/server/services/qs.service";
 import { ServerActionResult, SuccessActionResult } from "@/shared/model/server-action-error-return.model";
@@ -50,6 +51,28 @@ export const removeNodeLabel = async (nodeName: string, key: string) =>
     await getAdminUserSession();
     await clusterService.removeNodeLabel(nodeName, key);
     return new SuccessActionResult(undefined, `Label "${key}" removed successfully.`);
+  });
+
+export const deleteNode = async (nodeName: string) =>
+  simpleAction(async () => {
+    await getAdminUserSession();
+    await clusterService.deleteNode(nodeName);
+    return new SuccessActionResult(undefined, `Node "${nodeName}" removed from cluster.`);
+  });
+
+export const updateStaleNodeCleanupSettings = async (prevState: any, inputData: StaleNodeCleanupSettingsModel) =>
+  saveFormAction(inputData, staleNodeCleanupSettingsZodModel, async (validatedData) => {
+    await getAdminUserSession();
+
+    await paramService.save({
+      name: ParamService.AUTO_CLEANUP_STALE_NODES,
+      value: validatedData.enabled + ''
+    });
+
+    await paramService.save({
+      name: ParamService.STALE_NODE_THRESHOLD_MINUTES,
+      value: validatedData.thresholdMinutes + ''
+    });
   });
 
 export const applyTraefikIpPropagation = async (enableIpPreservation: boolean) =>

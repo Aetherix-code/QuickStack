@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useBreadcrumbs, useConfirmDialog } from "@/frontend/states/zustand.states";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect } from "react";
-import { setNodeStatus } from "./actions";
+import { setNodeStatus, deleteNode } from "./actions";
 import AddClusterNodeDialog from "./add-cluster-node-dialog";
 import NodeLabelsDialog from "./node-labels-dialog";
 
@@ -25,6 +25,18 @@ export default function NodeInfo({ nodeInfos, clusterJoinToken }: { nodeInfos: N
         });
         if (confirmation) {
             Toast.fromAction(() => setNodeStatus(nodeName, schedulable));
+        }
+    }
+
+    const deleteNodeClick = async (nodeName: string) => {
+        const confirmation = await openDialog({
+            title: 'Remove Node',
+            description: `Are you sure you want to remove node "${nodeName}" from the cluster? This action cannot be undone.`,
+            okButton: 'Remove',
+            cancelButton: 'Cancel'
+        });
+        if (confirmation) {
+            Toast.fromAction(() => deleteNode(nodeName));
         }
     }
 
@@ -116,6 +128,7 @@ export default function NodeInfo({ nodeInfos, clusterJoinToken }: { nodeInfos: N
                                 <NodeLabelsDialog nodeName={nodeInfo.name} labels={nodeInfo.labels}>
                                     <Button variant="outline">Labels{Object.keys(nodeInfo.labels).length > 0 && ` (${Object.keys(nodeInfo.labels).length})`}</Button>
                                 </NodeLabelsDialog>
+                                <Button onClick={() => deleteNodeClick(nodeInfo.name)} variant="outline" className="text-destructive">Remove Node</Button>
                             </div>}
                             {index === 0 && <div className="flex px-4 pb-4 gap-4">
                                 <NodeLabelsDialog nodeName={nodeInfo.name} labels={nodeInfo.labels}>
