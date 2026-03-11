@@ -11,7 +11,6 @@ import backupService from './server/services/standalone-services/backup.service'
 import maintenanceService from './server/services/standalone-services/maintenance.service'
 import passwordChangeService from './server/services/standalone-services/password-change.service'
 import appLogsService from './server/services/standalone-services/app-logs.service'
-import staleNodeCleanupService from './server/services/standalone-services/stale-node-cleanup.service'
 
 // Source: https://nextjs.org/docs/app/building-your-application/configuring/custom-server
 
@@ -55,29 +54,32 @@ async function initializeNextJs() {
         }
     }
 
-    await backupService.registerAllBackups();
-    maintenanceService.configureMaintenanceCronJobs();
-    appLogsService.configureCronJobs();
-    staleNodeCleanupService.configureCronJobs();
-
     const app = next({ dev });
     const handle = app.getRequestHandler();
 
-    app.prepare().then(() => {
+    await app.prepare();
 
-        const server = createServer((req, res) => {
-            const parsedUrl = parse(req.url!, true)
-            handle(req, res, parsedUrl)
-        });
+    await backupService.registerAllBackups();
+    maintenanceService.configureMaintenanceCronJobs();
+    appLogsService.configureCronJobs();
 
-        socketIoServer.initialize(server);
-        server.listen(port)
+    // Dynamic import: this service imports revalidateTag from next/cache,
+    // which requires Next.js to be initialized first
+    const staleNodeCleanupService = (await import('./server/services/standalone-services/stale-node-cleanup.service')).default;
+    staleNodeCleanupService.configureCronJobs();
 
-        console.log(
-            `> Server listening at http://localhost:${port} as ${dev ? 'development' : process.env.NODE_ENV
-            }`
-        )
+    const server = createServer((req, res) => {
+        const parsedUrl = parse(req.url!, true)
+        handle(req, res, parsedUrl)
     });
+
+    socketIoServer.initialize(server);
+    server.listen(port)
+
+    console.log(
+        `> Server listening at http://localhost:${port} as ${dev ? 'development' : process.env.NODE_ENV
+        }`
+    )
 }
 
 if (process.env.NODE_ENV === 'production' && process.env.START_MODE === 'setup') {
