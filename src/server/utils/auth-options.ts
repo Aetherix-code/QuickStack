@@ -20,6 +20,17 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     const githubClientId = await paramService.getString(ParamService.GITHUB_CLIENT_ID) || process.env.GITHUB_CLIENT_ID;
     const githubClientSecret = await paramService.getString(ParamService.GITHUB_CLIENT_SECRET) || process.env.GITHUB_CLIENT_SECRET;
 
+    // Resolve NEXTAUTH_URL from configured hostname, public IP, or env var
+    if (!process.env.NEXTAUTH_URL) {
+        const hostname = await paramService.getString(ParamService.QS_SERVER_HOSTNAME);
+        const publicIp = await paramService.getString(ParamService.PUBLIC_IPV4_ADDRESS);
+        if (hostname) {
+            process.env.NEXTAUTH_URL = `https://${hostname}`;
+        } else if (publicIp) {
+            process.env.NEXTAUTH_URL = `http://${publicIp}:30000`;
+        }
+    }
+
     return {
     session: {
         strategy: "jwt",
