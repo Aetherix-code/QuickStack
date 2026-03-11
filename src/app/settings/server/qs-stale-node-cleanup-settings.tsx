@@ -75,7 +75,7 @@ export default function QuickStackStaleNodeCleanupSettings({
                                             />
                                         </FormControl>
                                         <FormDescription>
-                                            Nodes that are NotReady for longer than this will be removed. Check runs every 5 minutes.
+                                            Nodes that are NotReady for longer than this will be removed. Check runs every 2 minutes.
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

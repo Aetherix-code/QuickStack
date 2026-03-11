@@ -10,7 +10,7 @@ const DEFAULT_THRESHOLD_MINUTES = 10;
 class StaleNodeCleanupService {
 
     configureCronJobs() {
-        scheduleService.scheduleJob(JOB_NAME, '*/5 * * * *', async () => {
+        scheduleService.scheduleJob(JOB_NAME, '*/2 * * * *', async () => {
             try {
                 await this.cleanupStaleNodes();
             } catch (error) {
