@@ -17,7 +17,8 @@ import paramService, { ParamService } from "./param.service";
 import userService from "./user.service";
 
 const buildkitImage = "moby/buildkit:master";
-const railpackFrontendImage = "ghcr.io/railwayapp/railpack:latest";
+const railpackFrontendImage = "ghcr.io/railwayapp/railpack-frontend:latest";
+const railpackVersion = "v0.18.0";
 
 function isGitHubUrl(gitUrl: string): boolean {
     return /^https?:\/\/([^/]+@)?(github\.com|api\.github\.com)/.test(gitUrl) || gitUrl.includes('github.com');
@@ -164,25 +165,39 @@ class BuildService {
     }
 
     private createAutoBuildJob(deploymentId: string, app: AppExtendedModel, buildName: string, latestRemoteGitHash: string, resolvedGitUrl?: string): V1Job {
-        const baseGitUrl = resolvedGitUrl ?? (app.gitUsername && app.gitToken
+        const gitUrl = resolvedGitUrl ?? (app.gitUsername && app.gitToken
             ? app.gitUrl!.replace('https://', `https://${app.gitUsername}:${app.gitToken}@`)
             : app.gitUrl!);
         const contextPaths = PathUtils.splitPath(app.dockerfilePath);
         const contextSubdir = (contextPaths.folderPath || '').replace(/^\.\/?/, '');
-        const gitContextUrl = `${baseGitUrl}#refs/heads/${app.gitBranch || 'main'}${contextSubdir ? ':' + contextSubdir : ''}`;
+        const branch = app.gitBranch || 'main';
 
+        const contextPath = contextSubdir ? `/workspace/repo/${contextSubdir}` : '/workspace/repo';
+        
+        // Clone repo and run railpack prepare to generate plan (using Debian for mise compatibility)
+        const initScript = [
+            'set -e',
+            'apt-get update && apt-get install -y git curl ca-certificates',
+            'ARCH=$(uname -m)',
+            'case "$ARCH" in aarch64|arm64) ARCH="arm64";; x86_64|amd64) ARCH="x86_64";; esac',
+            `curl -sL "https://github.com/railwayapp/railpack/releases/download/${railpackVersion}/railpack-${railpackVersion}-\${ARCH}-unknown-linux-musl.tar.gz" | tar xz -C /usr/local/bin`,
+            'git clone --depth 1 --single-branch --branch "$GIT_BRANCH" "$GIT_URL" /workspace/repo',
+            `cd ${contextPath}`,
+            'railpack prepare . --plan-out railpack-plan.json',
+        ].join(' && ');
+
+        // Railpack frontend uses the generated plan file from the dockerfile context
         const buildkitArgs = [
             "build",
             "--frontend", "gateway.v0",
             "--opt", `source=${railpackFrontendImage}`,
-            "--opt", `context=${gitContextUrl}`,
+            "--local", `context=${contextPath}`,
+            "--local", `dockerfile=${contextPath}`,
             "--output",
             `type=image,name=${registryService.createInternalContainerRegistryUrlForAppId(app.id)},push=true,registry.insecure=true`,
         ];
 
-        // Redact credentials from log output
-        const safeGitUrl = gitContextUrl.replace(/\/\/[^@]+@/, '//***@');
-        dlog(deploymentId, `Auto build (railpack): git context ${safeGitUrl}`);
+        dlog(deploymentId, `Auto build (Railpack): context ${contextPath}`);
 
         return {
             apiVersion: "batch/v1",
@@ -201,6 +216,18 @@ class BuildService {
                 ttlSecondsAfterFinished: 86400,
                 template: {
                     spec: {
+                        initContainers: [
+                            {
+                                name: `${buildName}-clone`,
+                                image: "debian:12-slim",
+                                command: ["/bin/bash", "-c", initScript],
+                                env: [
+                                    { name: "GIT_URL", value: gitUrl },
+                                    { name: "GIT_BRANCH", value: branch },
+                                ],
+                                volumeMounts: [{ name: "workspace", mountPath: "/workspace" }],
+                            },
+                        ],
                         containers: [
                             {
                                 name: buildName,
@@ -208,8 +235,10 @@ class BuildService {
                                 command: ["buildctl-daemonless.sh"],
                                 args: buildkitArgs,
                                 securityContext: { privileged: true },
+                                volumeMounts: [{ name: "workspace", mountPath: "/workspace" }],
                             },
                         ],
+                        volumes: [{ name: "workspace", emptyDir: {} }],
                         restartPolicy: "Never",
                     },
                 },
