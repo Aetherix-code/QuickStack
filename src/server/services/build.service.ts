@@ -173,7 +173,7 @@ class BuildService {
         const branch = app.gitBranch || 'main';
 
         const contextPath = contextSubdir ? `/workspace/repo/${contextSubdir}` : '/workspace/repo';
-        
+
         // Clone repo and run railpack prepare to generate plan (using Debian for mise compatibility)
         const initScript = [
             'set -e',

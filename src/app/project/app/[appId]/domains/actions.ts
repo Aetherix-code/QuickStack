@@ -68,3 +68,12 @@ export const getQuickstackDomainSuffix = async () => simpleAction(async () => {
     }
     return HostnameDnsProviderUtils.getHexHostanmeForIpAddress(publicIpv4);
 });
+
+export const getSystemDomain = async () => simpleAction(async () => {
+    await getAuthUserSession();
+    const serverUrl = await paramService.getString(ParamService.QS_SERVER_HOSTNAME);
+    if (!serverUrl) {
+        return undefined;
+    }
+    return serverUrl;
+});

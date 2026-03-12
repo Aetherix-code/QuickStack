@@ -19,7 +19,7 @@ import { SubmitButton } from "@/components/custom/submit-button";
 import { AppDomain } from "@prisma/client"
 import { AppDomainEditModel, appDomainEditZodModel } from "@/shared/model/domain-edit.model"
 import { ServerActionResult } from "@/shared/model/server-action-error-return.model"
-import { saveDomain, getQuickstackDomainSuffix } from "./actions"
+import { saveDomain, getQuickstackDomainSuffix, getSystemDomain } from "./actions"
 import { toast } from "sonner"
 import CheckboxFormField from "@/components/custom/checkbox-form-field"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -35,14 +35,20 @@ export default function DialogEditDialog({ children, domain, appId }: { children
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [domainSuffix, setDomainSuffix] = useState<string | undefined>(undefined);
-    const [activeTab, setActiveTab] = useState<'custom' | 'quickstack'>('custom');
+    const [systemDomain, setSystemDomain] = useState<string | undefined>(undefined);
+    const [activeTab, setActiveTab] = useState<'custom' | 'quickstack' | 'subdomain'>('custom');
 
     useEffect(() => {
-        // Load the quickstack.me domain suffix when dialog opens
+        // Load the quickstack.me domain suffix and system domain when dialog opens
         if (isOpen) {
             getQuickstackDomainSuffix().then((res) => {
                 if (res.status === 'success' && res.data) {
                     setDomainSuffix(res.data);
+                }
+            });
+            getSystemDomain().then((res) => {
+                if (res.status === 'success' && res.data) {
+                    setSystemDomain(res.data);
                 }
             });
         }
@@ -50,6 +56,13 @@ export default function DialogEditDialog({ children, domain, appId }: { children
 
     // Determine which tab should be active based on the domain
     useEffect(() => {
+        if (domain?.hostname && systemDomain) {
+            // Check if it's a subdomain with app-id format using system domain
+            if (domain.hostname === `${appId}.${systemDomain}`) {
+                setActiveTab('subdomain');
+                return;
+            }
+        }
         if (domain?.hostname && domainSuffix) {
             if (HostnameDnsProviderUtils.containsDnsProviderHostname(domain.hostname)) {
                 setActiveTab('quickstack');
@@ -57,7 +70,7 @@ export default function DialogEditDialog({ children, domain, appId }: { children
                 setActiveTab('custom');
             }
         }
-    }, [domain, domainSuffix]);
+    }, [domain, domainSuffix, systemDomain, appId]);
 
     const form = useForm<AppDomainEditModel>({
         resolver: zodResolver(appDomainEditZodModel),
@@ -113,7 +126,7 @@ export default function DialogEditDialog({ children, domain, appId }: { children
                 {children}
             </div>
             <Dialog open={!!isOpen} onOpenChange={(isOpened) => setIsOpen(false)}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader>
                         <DialogTitle>Edit Domain</DialogTitle>
                         <DialogDescription>
@@ -124,10 +137,11 @@ export default function DialogEditDialog({ children, domain, appId }: { children
                         <form action={(e) => form.handleSubmit((data) => {
                             return handleFormSubmit(data);
                         })()}>
-                            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'custom' | 'quickstack')} className="w-full">
-                                <TabsList className="grid w-full grid-cols-2">
+                            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'custom' | 'quickstack' | 'subdomain')} className="w-full">
+                                <TabsList className={`grid w-full ${domainSuffix && systemDomain ? 'grid-cols-3' : domainSuffix ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                     <TabsTrigger value="custom">Custom Domain</TabsTrigger>
                                     {!!domainSuffix && <TabsTrigger value="quickstack">quickstack.me Domain</TabsTrigger>}
+                                    {!!systemDomain && <TabsTrigger value="subdomain">Sub Domain</TabsTrigger>}
                                 </TabsList>
 
                                 <TabsContent value="custom" className="space-y-4 mt-4">
@@ -195,6 +209,52 @@ export default function DialogEditDialog({ children, domain, appId }: { children
                                                                     <p>This ist the quickstack.me <br />domain for your instance.</p>
                                                                 </TooltipContent>
                                                             </Tooltip>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            );
+                                        }}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="port"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>App Port</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="ex. 80" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <CheckboxFormField form={form} name="useSsl" label="use HTTPS" />
+                                    {values.useSsl && <CheckboxFormField form={form} name="redirectHttps" label="Redirect HTTP to HTTPS" />}
+                                </TabsContent>
+
+                                <TabsContent value="subdomain" className="space-y-4 mt-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="hostname"
+                                        render={({ field }) => {
+                                            const subdomainHostname = `${appId}.${systemDomain}`;
+                                            // Auto-set the hostname when switching to subdomain tab
+                                            if (activeTab === 'subdomain' && field.value !== subdomainHostname) {
+                                                field.onChange(subdomainHostname);
+                                            }
+                                            return (
+                                                <FormItem>
+                                                    <FormLabel>Subdomain</FormLabel>
+                                                    <FormControl>
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                value={subdomainHostname}
+                                                                disabled
+                                                                className="bg-muted"
+                                                            />
                                                         </div>
                                                     </FormControl>
                                                     <FormMessage />
