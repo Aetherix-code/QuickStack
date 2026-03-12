@@ -4,6 +4,7 @@ import { V2HorizontalPodAutoscaler } from "@kubernetes/client-node";
 import { KubeObjectNameUtils } from "../utils/kube-object-name.utils";
 import { Constants } from "../../shared/utils/constants";
 import { dlog } from "./deployment-logs.service";
+import appService from "./app.service";
 
 class HpaService {
 
@@ -47,12 +48,49 @@ class HpaService {
         }
 
         await this.createOrUpdateHpa(app.projectId, app.id, app.minReplicas, app.maxReplicas, app.cpuThreshold, app.memoryThreshold);
-        dlog(deploymentId, `Created/Updated HPA for app ${app.name} with min=${app.minReplicas}, max=${app.maxReplicas}, CPU=${app.cpuThreshold}%, Memory=${app.memoryThreshold}%`);
+
+        // Build log message based on which metrics are active
+        const metrics: string[] = [];
+        if (app.cpuReservation) metrics.push(`CPU=${app.cpuThreshold}%`);
+        if (app.memoryReservation) metrics.push(`Memory=${app.memoryThreshold}%`);
+        dlog(deploymentId, `Created/Updated HPA for app ${app.name} with min=${app.minReplicas}, max=${app.maxReplicas}, metrics: ${metrics.join(', ')}`);
     }
 
     async createOrUpdateHpa(namespace: string, kubeAppName: string, minReplicas: number, maxReplicas: number, cpuThreshold: number, memoryThreshold: number) {
         const existingHpa = await this.getHpa(namespace, kubeAppName);
         const hpaName = KubeObjectNameUtils.toHpaName(kubeAppName);
+
+        // Get the app to check which resource requests are set
+        const app = await appService.getExtendedById(kubeAppName);
+
+        // Build metrics array - only include metrics for which resource requests are set
+        const metrics: any[] = [];
+
+        if (app.cpuReservation) {
+            metrics.push({
+                type: 'Resource',
+                resource: {
+                    name: 'cpu',
+                    target: {
+                        type: 'Utilization',
+                        averageUtilization: cpuThreshold,
+                    },
+                },
+            });
+        }
+
+        if (app.memoryReservation) {
+            metrics.push({
+                type: 'Resource',
+                resource: {
+                    name: 'memory',
+                    target: {
+                        type: 'Utilization',
+                        averageUtilization: memoryThreshold,
+                    },
+                },
+            });
+        }
 
         const body: V2HorizontalPodAutoscaler = {
             apiVersion: 'autoscaling/v2',
@@ -73,28 +111,7 @@ class HpaService {
                 },
                 minReplicas: minReplicas,
                 maxReplicas: maxReplicas,
-                metrics: [
-                    {
-                        type: 'Resource',
-                        resource: {
-                            name: 'cpu',
-                            target: {
-                                type: 'Utilization',
-                                averageUtilization: cpuThreshold,
-                            },
-                        },
-                    },
-                    {
-                        type: 'Resource',
-                        resource: {
-                            name: 'memory',
-                            target: {
-                                type: 'Utilization',
-                                averageUtilization: memoryThreshold,
-                            },
-                        },
-                    },
-                ],
+                metrics: metrics,
             },
         };
 

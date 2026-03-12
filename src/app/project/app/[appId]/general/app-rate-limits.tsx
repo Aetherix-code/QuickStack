@@ -180,7 +180,8 @@ export default function GeneralAppRateLimits({ app, readonly }: {
                                                         />
                                                     </FormControl>
                                                     <FormDescription>
-                                                        Scale up when CPU usage exceeds this percentage
+                                                        Scale up when CPU usage exceeds this % of CPU Reservation (request)
+                                                        {!app.cpuReservation && <span className="text-amber-600 block mt-1">⚠️ CPU Reservation must be set for this metric to work</span>}
                                                     </FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
@@ -208,7 +209,8 @@ export default function GeneralAppRateLimits({ app, readonly }: {
                                                         />
                                                     </FormControl>
                                                     <FormDescription>
-                                                        Scale up when memory usage exceeds this percentage
+                                                        Scale up when memory usage exceeds this % of Memory Reservation (request)
+                                                        {!app.memoryReservation && <span className="text-amber-600 block mt-1">⚠️ Memory Reservation must be set for this metric to work</span>}
                                                     </FormDescription>
                                                     <FormMessage />
                                                 </FormItem>

@@ -91,7 +91,7 @@ export const saveGeneralAppRateLimits = async (prevState: any, inputData: AppRat
         }
 
         // Validate HPA requirements
-        if (validatedData.autoScalingEnabled && !extendedApp.cpuReservation && !extendedApp.memoryReservation) {
+        if (validatedData.autoScalingEnabled && !validatedData.cpuReservation && !validatedData.memoryReservation) {
             throw new ServiceException('Auto-scaling requires CPU or memory resource requests to be set.');
         }
 
