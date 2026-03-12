@@ -171,7 +171,6 @@ class BuildService {
         const contextSubdir = (contextPaths.folderPath || '').replace(/^\.\/?/, '');
         const gitContextUrl = `${baseGitUrl}#refs/heads/${app.gitBranch || 'main'}${contextSubdir ? ':' + contextSubdir : ''}`;
 
-        const cacheRef = `${registryService.createInternalContainerRegistryUrlForAppId(app.id)}:buildcache`;
         const buildkitArgs = [
             "build",
             "--frontend", "gateway.v0",
@@ -179,11 +178,11 @@ class BuildService {
             "--opt", `context=${gitContextUrl}`,
             "--output",
             `type=image,name=${registryService.createInternalContainerRegistryUrlForAppId(app.id)},push=true,registry.insecure=true`,
-            "--export-cache", `type=registry,ref=${cacheRef},registry.insecure=true`,
-            "--import-cache", `type=registry,ref=${cacheRef},registry.insecure=true`,
         ];
 
-        dlog(deploymentId, `Auto build (railpack): git context ${gitContextUrl}`);
+        // Redact credentials from log output
+        const safeGitUrl = gitContextUrl.replace(/\/\/[^@]+@/, '//***@');
+        dlog(deploymentId, `Auto build (railpack): git context ${safeGitUrl}`);
 
         return {
             apiVersion: "batch/v1",
