@@ -72,14 +72,13 @@ class PodsStatusPollingService {
                 console.log('[PodsStatusService] Stream aborted');
             } else {
                 console.error('[PodsStatusService] Stream error:', error);
-                // Retry logic - increased timeout since backend now handles reconnections
+                // Retry logic
                 this.isConnected = false;
                 setTimeout(() => {
                     if (!signal.aborted) {
-                        console.log('[PodsStatusService] Reconnecting to deployment status stream...');
                         this.connect();
                     }
-                }, 10000); // Increased from 5s to 10s
+                }, 5000);
             }
         } finally {
             this.isConnected = false;

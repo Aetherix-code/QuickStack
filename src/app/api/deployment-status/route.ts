@@ -41,85 +41,57 @@ export async function POST(request: Request) {
                     console.error("Error fetching initial status", e);
                 }
 
-                // 2. Watch for changes with automatic retry logic
-                const startWatch = async () => {
-                    if (shouldStopStreaming) return;
+                // 2. Watch for changes
+                const kc = k3s.getKubeConfig();
+                const watch = new k8s.Watch(kc);
+                console.log("[START] Starting watch for deployments ");
+                watchRequest = await watch.watch(
+                    '/apis/apps/v1/deployments',
+                    {},
+                    async (type, apiObj, watchObj) => {
+                        if (shouldStopStreaming) { return; }
 
-                    const kc = k3s.getKubeConfig();
-                    const watch = new k8s.Watch(kc);
-                    console.log("[START] Starting watch for deployments");
-                    
-                    try {
-                        watchRequest = await watch.watch(
-                            '/apis/apps/v1/deployments',
-                            {},
-                            async (type, apiObj, watchObj) => {
-                                if (shouldStopStreaming) { return; }
+                        const deployment = apiObj as V1Deployment;
+                        const appId = deployment.metadata?.name;
+                        const projectId = deployment.metadata?.namespace;
 
-                                const deployment = apiObj as V1Deployment;
-                                const appId = deployment.metadata?.name;
-                                const projectId = deployment.metadata?.namespace;
+                        if (!appId || !projectId) { return; }
 
-                                if (!appId || !projectId) { return; }
+                        // ignore system namespaces
+                        if (['default', 'longhorn-system', 'kube-public', 'kube-system', 'cert-manager'].includes(projectId)) { return; }
 
-                                // ignore system namespaces
-                                if (['default', 'longhorn-system', 'kube-public', 'kube-system', 'cert-manager'].includes(projectId)) { return; }
+                        // If a new deployment is detected (ADDED) and we don't know about it,
+                        // it might be a newly created app. Refresh the lookup.
+                        if (type === 'ADDED' && !appLookup.has(appId)) {
+                            console.log(`[LiveStatus] New unknown deployment detected for ${appId}, refreshing app lookup`);
+                            appLookup = await deploymentLiveStatusService.getAppLookup(session);
+                        }
 
-                                // If a new deployment is detected (ADDED) and we don't know about it,
-                                // it might be a newly created app. Refresh the lookup.
-                                if (type === 'ADDED' && !appLookup.has(appId)) {
-                                    console.log(`[LiveStatus] New unknown deployment detected for ${appId}, refreshing app lookup`);
-                                    appLookup = await deploymentLiveStatusService.getAppLookup(session);
-                                }
+                        const appInfo = appLookup.get(appId);
+                        if (!appInfo) {
+                            return;
+                        }
 
-                                const appInfo = appLookup.get(appId);
-                                if (!appInfo) {
-                                    return;
-                                }
+                        // Verify namespace matches project ID
+                        if (appInfo.projectId !== projectId) { return; }
 
-                                // Verify namespace matches project ID
-                                if (appInfo.projectId !== projectId) { return; }
+                        let status;
+                        if (type === 'DELETED') {
+                            status = deploymentLiveStatusService.mapDeploymentToStatus(appId, appInfo, undefined);
+                        } else {
+                            status = deploymentLiveStatusService.mapDeploymentToStatus(appId, appInfo, deployment);
+                        }
 
-                                let status;
-                                if (type === 'DELETED') {
-                                    status = deploymentLiveStatusService.mapDeploymentToStatus(appId, appInfo, undefined);
-                                } else {
-                                    status = deploymentLiveStatusService.mapDeploymentToStatus(appId, appInfo, deployment);
-                                }
-
-                                sendData(status);
-                            },
-                            (err) => {
-                                if (shouldStopStreaming) return;
-                                
-                                if (err) {
-                                    console.error('[DeploymentWatch] Watch error:', err.message || err);
-                                } else {
-                                    console.log('[DeploymentWatch] Watch ended normally');
-                                }
-                                
-                                // Automatically retry after 5 seconds instead of closing the stream
-                                console.log('[DeploymentWatch] Reconnecting in 5 seconds...');
-                                setTimeout(() => {
-                                    if (!shouldStopStreaming) {
-                                        startWatch();
-                                    }
-                                }, 5000);
-                            }
-                        );
-                    } catch (error) {
-                        console.error('[DeploymentWatch] Failed to start watch:', error);
-                        // Retry after 5 seconds
-                        setTimeout(() => {
-                            if (!shouldStopStreaming) {
-                                startWatch();
-                            }
-                        }, 5000);
+                        sendData(status);
+                    },
+                    (err) => {
+                        if (err) console.error('Deploy watch error', err);
+                        console.log('Deploy watch ended');
+                        if (!shouldStopStreaming) {
+                            controller.close();
+                        }
                     }
-                };
-
-                // Start the watch loop
-                startWatch();
+                );
             },
             cancel() {
                 console.log("[LEAVE] Cancelling informer for deployments");
