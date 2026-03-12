@@ -16,6 +16,7 @@ import networkPolicyService from "./network-policy.service";
 import githubService from "./github.service";
 import paramService, { ParamService } from "./param.service";
 import userService from "./user.service";
+import hpaService from "./hpa.service";
 
 class AppService {
 
@@ -63,6 +64,7 @@ class AppService {
         try {
             await svcService.deleteService(existingApp.projectId, existingApp.id);
             await deploymentService.deleteDeploymentIfExists(existingApp.projectId, existingApp.id);
+            await hpaService.deleteHpa(existingApp.projectId, existingApp.id);
             await ingressService.deleteAllIngressForApp(existingApp.projectId, existingApp.id);
             await pvcService.deleteAllPvcOfApp(existingApp.projectId, existingApp.id);
             await buildService.deleteAllBuildsOfApp(existingApp.id);
