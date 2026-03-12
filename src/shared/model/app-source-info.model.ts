@@ -7,7 +7,7 @@ export const appSourceInfoGitZodModel = z.object({
   gitUrl: z.string().trim(),
   gitBranch: z.string().trim(),
   dockerfilePath: z.string().trim(),
-  buildMethod: z.enum(["DOCKERFILE", "NIXPACKS"]).default("DOCKERFILE"),
+  buildMethod: z.enum(["DOCKERFILE", "AUTO"]).default("DOCKERFILE"),
 });
 export type AppSourceInfoGitModel = z.infer<typeof appSourceInfoGitZodModel>;
 
@@ -27,7 +27,7 @@ export const appSourceInfoInputZodModel = z.object({
   gitUrl: z.string().trim().nullish(),
   gitBranch: z.string().trim().nullish(),
   dockerfilePath: z.string().trim().nullish(),
-  buildMethod: z.enum(["DOCKERFILE", "NIXPACKS"]).nullish(),
+  buildMethod: z.enum(["DOCKERFILE", "AUTO"]).nullish(),
 });
 export type AppSourceInfoInputModel = z.infer<typeof appSourceInfoInputZodModel>;
 

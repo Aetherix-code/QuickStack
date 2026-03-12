@@ -17,7 +17,7 @@ import paramService, { ParamService } from "./param.service";
 import userService from "./user.service";
 
 const buildkitImage = "moby/buildkit:master";
-const nixpacksInitImage = "ghcr.io/railwayapp/nixpacks:latest";
+const railpackFrontendImage = "ghcr.io/railwayapp/railpack:latest";
 
 function isGitHubUrl(gitUrl: string): boolean {
     return /^https?:\/\/([^/]+@)?(github\.com|api\.github\.com)/.test(gitUrl) || gitUrl.includes('github.com');
@@ -61,10 +61,12 @@ class BuildService {
 
         // Check if last build is already up to date with data in git repo
         const latestSuccessfulBuld = buildsForApp.find(x => x.status === 'SUCCEEDED');
-        const latestRemoteGitHash = await gitService.openGitContext(app, async (ctx) => {
-            await ctx.checkIfDockerfileExists();
-            return await ctx.getLatestRemoteCommitHash();
-        }, resolvedGitUrl);
+        const latestRemoteGitHash = app.buildMethod === 'AUTO'
+            ? await gitService.getRemoteCommitHash(app, app.gitBranch ?? 'main', resolvedGitUrl)
+            : await gitService.openGitContext(app, async (ctx) => {
+                await ctx.checkIfDockerfileExists();
+                return await ctx.getLatestRemoteCommitHash();
+            }, resolvedGitUrl);
 
         dlog(deploymentId, `Cloned repository successfully`);
         dlog(deploymentId, `Latest remote git hash: ${latestRemoteGitHash}`);
@@ -88,8 +90,8 @@ class BuildService {
         dlog(deploymentId, `Creating build job with name: ${buildName}`);
 
         const jobDefinition =
-            app.buildMethod === 'NIXPACKS'
-                ? this.createNixpacksBuildJob(deploymentId, app, buildName, latestRemoteGitHash, resolvedGitUrl)
+            app.buildMethod === 'AUTO'
+                ? this.createAutoBuildJob(deploymentId, app, buildName, latestRemoteGitHash, resolvedGitUrl)
                 : this.createDockerfileBuildJob(deploymentId, app, buildName, latestRemoteGitHash, resolvedGitUrl);
 
         await k3s.batch.createNamespacedJob(BUILD_NAMESPACE, jobDefinition);
@@ -161,47 +163,27 @@ class BuildService {
         };
     }
 
-    private createNixpacksBuildJob(deploymentId: string, app: AppExtendedModel, buildName: string, latestRemoteGitHash: string, resolvedGitUrl?: string): V1Job {
-        const gitUrl = resolvedGitUrl ?? (app.gitUsername && app.gitToken
+    private createAutoBuildJob(deploymentId: string, app: AppExtendedModel, buildName: string, latestRemoteGitHash: string, resolvedGitUrl?: string): V1Job {
+        const baseGitUrl = resolvedGitUrl ?? (app.gitUsername && app.gitToken
             ? app.gitUrl!.replace('https://', `https://${app.gitUsername}:${app.gitToken}@`)
             : app.gitUrl!);
         const contextPaths = PathUtils.splitPath(app.dockerfilePath);
         const contextSubdir = (contextPaths.folderPath || '').replace(/^\.\/?/, '');
-        const branch = app.gitBranch || 'main';
+        const gitContextUrl = `${baseGitUrl}#refs/heads/${app.gitBranch || 'main'}${contextSubdir ? ':' + contextSubdir : ''}`;
 
-        // nixpacks is pre-installed in the image; only git may need to be added
-        const initScript = [
-            'set -e',
-            'which git > /dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq --no-install-recommends git > /dev/null)',
-            'echo "==> Cloning repository (shallow)..."',
-            'git clone --depth 1 --single-branch --branch "$GIT_BRANCH" "$GIT_URL" /workspace/repo',
-            'cd /workspace/repo',
-            'if [ -n "$CONTEXT_SUBDIR" ]; then cd "$CONTEXT_SUBDIR"; fi',
-            'echo "==> Running nixpacks build..."',
-            'nixpacks build . --out /workspace/out',
-            'echo "==> Merging Nixpacks output into app source (Dockerfile + .nixpacks)..."',
-            'cp -r /workspace/out/. .',
-            '[ -f Dockerfile ] || [ -f .nixpacks/Dockerfile ] || (echo "ERROR: No Dockerfile in nixpacks output. Contents:" && ls -laR /workspace/out && exit 1)',
-            'echo "==> Nixpacks build finished successfully"'
-        ].join(' && ');
-
-        // Context = app source dir with .nixpacks/ (and Dockerfile inside it in Nixpacks 1.41+) copied from nixpacks --out.
-        const nixpacksContextPath = contextSubdir ? `/workspace/repo/${contextSubdir}` : '/workspace/repo';
-        // Nixpacks 1.41+ writes Dockerfile under .nixpacks/Dockerfile, not at output root.
-        const nixpacksDockerfilePath = '.nixpacks/Dockerfile';
-
+        const cacheRef = `${registryService.createInternalContainerRegistryUrlForAppId(app.id)}:buildcache`;
         const buildkitArgs = [
             "build",
             "--frontend", "gateway.v0",
-            "--opt", "source=docker/dockerfile",
-            "--opt", `filename=${nixpacksDockerfilePath}`,
-            "--local", `context=${nixpacksContextPath}`,
-            "--local", `dockerfile=${nixpacksContextPath}`,
+            "--opt", `source=${railpackFrontendImage}`,
+            "--opt", `context=${gitContextUrl}`,
             "--output",
-            `type=image,name=${registryService.createInternalContainerRegistryUrlForAppId(app.id)},push=true,registry.insecure=true`
+            `type=image,name=${registryService.createInternalContainerRegistryUrlForAppId(app.id)},push=true,registry.insecure=true`,
+            "--export-cache", `type=registry,ref=${cacheRef},registry.insecure=true`,
+            "--import-cache", `type=registry,ref=${cacheRef},registry.insecure=true`,
         ];
 
-        dlog(deploymentId, `Nixpacks build: context ${nixpacksContextPath} (app source + Dockerfile + .nixpacks)`);
+        dlog(deploymentId, `Auto build (railpack): git context ${gitContextUrl}`);
 
         return {
             apiVersion: "batch/v1",
@@ -220,20 +202,6 @@ class BuildService {
                 ttlSecondsAfterFinished: 86400,
                 template: {
                     spec: {
-                        hostUsers: false,
-                        initContainers: [
-                            {
-                                name: `${buildName}-nixpacks`,
-                                image: nixpacksInitImage,
-                                command: ["/bin/sh", "-c", initScript],
-                                env: [
-                                    { name: "GIT_URL", value: gitUrl },
-                                    { name: "GIT_BRANCH", value: branch },
-                                    { name: "CONTEXT_SUBDIR", value: contextSubdir },
-                                ],
-                                volumeMounts: [{ name: "nixpacks-out", mountPath: "/workspace" }],
-                            },
-                        ],
                         containers: [
                             {
                                 name: buildName,
@@ -241,10 +209,8 @@ class BuildService {
                                 command: ["buildctl-daemonless.sh"],
                                 args: buildkitArgs,
                                 securityContext: { privileged: true },
-                                volumeMounts: [{ name: "nixpacks-out", mountPath: "/workspace" }],
                             },
                         ],
-                        volumes: [{ name: "nixpacks-out", emptyDir: {} }],
                         restartPolicy: "Never",
                     },
                 },

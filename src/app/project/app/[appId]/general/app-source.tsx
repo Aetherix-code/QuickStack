@@ -40,7 +40,7 @@ export default function GeneralAppSource({ app, readonly }: {
         defaultValues: {
             ...app,
             sourceType: app.sourceType as 'GIT' | 'CONTAINER',
-            buildMethod: (app.buildMethod as 'DOCKERFILE' | 'NIXPACKS' | null | undefined) || 'DOCKERFILE'
+            buildMethod: (app.buildMethod as 'DOCKERFILE' | 'AUTO' | null | undefined) || 'DOCKERFILE'
         },
         disabled: readonly,
     });
@@ -294,10 +294,10 @@ export default function GeneralAppSource({ app, readonly }: {
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-x-3 space-y-0">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="NIXPACKS" />
+                                                                    <RadioGroupItem value="AUTO" />
                                                                 </FormControl>
                                                                 <FormLabel className="font-normal">
-                                                                    Auto-detect (Nixpacks - automatically detect and build)
+                                                                    Auto-detect (automatically detect and build)
                                                                 </FormLabel>
                                                             </FormItem>
                                                         </RadioGroup>

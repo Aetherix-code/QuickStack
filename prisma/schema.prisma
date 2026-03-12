@@ -193,7 +193,7 @@ model App {
   gitUsername    String?
   gitToken       String?
   dockerfilePath String  @default("./Dockerfile")
-  buildMethod    String  @default("DOCKERFILE") // DOCKERFILE, NIXPACKS
+  buildMethod    String  @default("DOCKERFILE") // DOCKERFILE, AUTO
 
   minReplicas         Int     @default(1)
   maxReplicas         Int     @default(1)

@@ -50,6 +50,17 @@ class GitService {
         return git;
     }
 
+    async getRemoteCommitHash(app: AppExtendedModel, branch: string, resolvedGitUrl?: string): Promise<string> {
+        const git = simpleGit();
+        const gitUrl = resolvedGitUrl ?? this.getGitUrl(app);
+        const result = await git.listRemote(['--refs', gitUrl, `refs/heads/${branch}`]);
+        const hash = result.trim().split(/\s+/)[0];
+        if (!hash) {
+            throw new ServiceException(`Branch '${branch}' not found in remote repository.`);
+        }
+        return hash;
+    }
+
     private getGitUrl(app: AppExtendedModel) {
         if (app.gitUsername && app.gitToken) {
             return app.gitUrl!.replace('https://', `https://${app.gitUsername}:${app.gitToken}@`);
@@ -65,7 +76,7 @@ class InternalGitService {
     ) { }
 
     async checkIfDockerfileExists() {
-        if (this.app.buildMethod === 'NIXPACKS') {
+        if (this.app.buildMethod === 'AUTO') {
             return;
         }
         const gitPath = PathUtils.gitRootPathForApp(this.app.id);
