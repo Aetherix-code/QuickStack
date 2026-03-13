@@ -60,6 +60,10 @@ export async function POST(request: Request) {
                         // ignore system namespaces
                         if (['default', 'longhorn-system', 'kube-public', 'kube-system', 'cert-manager'].includes(projectId)) { return; }
 
+                        if (['quickstack', 'registry'].includes(appId)) {
+                            return;
+                        }
+
                         // If a new deployment is detected (ADDED) and we don't know about it,
                         // it might be a newly created app. Refresh the lookup.
                         if (type === 'ADDED' && !appLookup.has(appId)) {
