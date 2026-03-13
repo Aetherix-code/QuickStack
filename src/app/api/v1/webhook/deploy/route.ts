@@ -10,6 +10,15 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 const routeLogic = (request: Request) => simpleRoute(async () => {
+    // Ignore GitHub ping events
+    const githubEvent = request.headers.get('X-GitHub-Event');
+    if (githubEvent === 'ping') {
+        return NextResponse.json({
+            status: "success",
+            body: "Ping received.",
+        });
+    }
+
     const url = new URL(request.url);
     const searchParams = url.searchParams;
 
