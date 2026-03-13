@@ -268,7 +268,10 @@ class RegistryService {
     secretkey: ${s3Target.secretKey}
     region: ${s3Target.region}
     bucket: ${s3Target.bucketName}
-    chunksize: 5242880
+    chunksize: 26214400
+    multipartcopychunksize: 26214400
+    multipartcopymaxconcurrency: 1
+    forcepathstyle: true
     loglevel: debug`;
             if (s3Target.endpoint) {
                 storageS3provider += `\n    regionendpoint: ${s3Target.endpoint}`;
