@@ -25,17 +25,28 @@ function isGitHubUrl(gitUrl: string): boolean {
 }
 
 async function resolveGitUrlWithUserToken(app: AppExtendedModel, userEmail?: string | null): Promise<string | undefined> {
+    console.log('[resolveGitUrlWithUserToken] userEmail:', userEmail);
+    console.log('[resolveGitUrlWithUserToken] app.gitUrl:', app.gitUrl);
+    console.log('[resolveGitUrlWithUserToken] isGitHubUrl:', isGitHubUrl(app.gitUrl || ''));
+    
     if (!userEmail || !app.gitUrl || !isGitHubUrl(app.gitUrl)) {
+        console.log('[resolveGitUrlWithUserToken] Early return: missing userEmail, gitUrl, or not GitHub');
         return undefined;
     }
     const user = await userService.getUserByEmail(userEmail);
+    console.log('[resolveGitUrlWithUserToken] user.githubAccessToken exists:', !!user.githubAccessToken);
+    console.log('[resolveGitUrlWithUserToken] user.githubUsername:', user.githubUsername);
+    
     if (!user.githubAccessToken) {
+        console.log('[resolveGitUrlWithUserToken] No GitHub token found for user');
         return undefined;
     }
     const username = user.githubUsername || 'git';
     // Strip any existing auth from URL (e.g. https://user@github.com/...) then add token
     const base = app.gitUrl.replace(/^https?:\/\/[^/]*@/, 'https://');
-    return base.replace(/^https?:\/\//, `https://${encodeURIComponent(username)}:${encodeURIComponent(user.githubAccessToken)}@`);
+    const resolvedUrl = base.replace(/^https?:\/\//, `https://${encodeURIComponent(username)}:${encodeURIComponent(user.githubAccessToken)}@`);
+    console.log('[resolveGitUrlWithUserToken] Resolved URL with token (redacted)');
+    return resolvedUrl;
 }
 
 class BuildService {
