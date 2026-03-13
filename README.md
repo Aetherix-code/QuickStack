@@ -2,9 +2,26 @@
 
 <img  src="/public/quickstack-repo-heading.png" alt="QuickStack Logo" width="100%" />
 
+> **This is a fork of [QuickStack](https://github.com/biersoeckli/QuickStack)** originally created by [biersoeckli](https://github.com/biersoeckli) and [glueh-wyy-huet](https://github.com/glueh-wyy-huet) at the [Eastern Switzerland University of Applied Sciences](https://ost.ch/).
+
 QuickStack is a self-hosted PaaS solution designed to simplify the management of your applications on one or more virtual private servers (VPS).
 
-Developed as part of a student project by [glueh-wyy-huet](https://github.com/glueh-wyy-huet) and [biersoeckli](https://github.com/biersoeckli) at the [Eastern Switzerland University of Applied Sciences](https://ost.ch/), QuickStack provides a scalable and cost-effective alternative to commercial cloud PaaS offerings like Vercel, Digital Ocean App Platform or Azure App Service.
+## What's New in This Fork
+
+### New Features
+- **GitHub-First App Deployment** — Deploy apps directly from GitHub with integrated webhook support
+- **GitHub OAuth Integration** — Connect GitHub accounts for private repo access and automatic webhook setup
+- **Horizontal Pod Autoscaling (HPA)** — Auto-scale app replicas based on resource usage
+- **Subdomain Routing** — Configure custom subdomains for apps
+- **Node Labels Management** — Assign and manage Kubernetes node labels from the UI and/or the setup scripts.
+- **App Node Affinity** — Target specific nodes for app deployment (None/Preferred/Required)
+- **Auto Builds** — Use Railpack to auto generate Docker files.
+- **Stale Node Auto-Cleanup** — Automatically detect and remove unresponsive cluster nodes
+- **Small bug fixes/improvements**
+
+### Fixes
+- Pinned Docker Registry to v2 (v3 broke S3 config compatibility)
+- Improved QuickStack Github Actions build time from 20+ minutes down to ~3
 
 <img src="/github-assets/app-settings-general.png" alt="QuickStack App Settings Image" width="100%" />
 
