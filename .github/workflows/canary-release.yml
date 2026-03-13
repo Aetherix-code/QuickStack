@@ -62,5 +62,3 @@ jobs:
             VERSION_ARG=canary-${{ github.run_number }}
           tags: |
             aetherixcode/quickstack:canary
-          cache-from: type=gha,scope=canary
-          cache-to: type=gha,mode=max,scope=canary
