@@ -48,13 +48,13 @@ Before getting started, ensure that you have:
 1. **Connect to your VPS via SSH.**
 2. **Run the setup script:**
 ```bash
-curl -sfL https://get.quickstack.dev/setup.sh | sh -
+curl -sfL https://raw.githubusercontent.com/Aetherix-code/QuickStack/refs/heads/main/setup/setup.sh | sh -
 ```
 
 **Non-interactive installation:**
 If you want to skip the network interface selection prompt, you can specify the interface using the `INSTALL_K3S_INTERFACE` environment variable:
 ```bash
-curl -sfL https://get.quickstack.dev/setup.sh | INSTALL_K3S_INTERFACE=eth0 sh -
+curl -sfL https://raw.githubusercontent.com/Aetherix-code/QuickStack/refs/heads/main/setup/setup.sh | INSTALL_K3S_INTERFACE=eth0 sh -
 ```
 
 Visit our [docs](https://quickstack.dev/docs/intro) for more detailed installation instructions:
