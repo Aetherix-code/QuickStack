@@ -25,9 +25,6 @@ function isGitHubUrl(gitUrl: string): boolean {
 }
 
 async function resolveGitUrlWithUserToken(app: AppExtendedModel, userEmail?: string | null): Promise<string | undefined> {
-    if (app.gitUsername && app.gitToken) {
-        return undefined; // caller will use app credentials
-    }
     if (!userEmail || !app.gitUrl || !isGitHubUrl(app.gitUrl)) {
         return undefined;
     }
