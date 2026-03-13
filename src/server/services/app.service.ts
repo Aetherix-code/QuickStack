@@ -20,7 +20,7 @@ import hpaService from "./hpa.service";
 
 class AppService {
 
-    async buildAndDeploy(appId: string, forceBuild: boolean = false, userEmail?: string | null) {
+    async buildAndDeploy(appId: string, forceBuild: boolean = false) {
         const deploymentId = crypto.randomUUID();
         return await deploymentLogService.catchErrosAndLog(deploymentId, async () => {
             const app = await this.getExtendedById(appId);
@@ -34,16 +34,19 @@ class AppService {
 
             if (app.sourceType === 'GIT') {
                 // Ensure GitHub webhook is up-to-date for GitHub-connected apps
-                if (userEmail) {
+                if (app.githubSourceUserId) {
                     try {
-                        await this.setupGitHubWebhook(appId, userEmail);
+                        const user = await userService.getUserById(app.githubSourceUserId);
+                        if (user?.email) {
+                            await this.setupGitHubWebhook(appId, user.email);
+                        }
                     } catch (e: any) {
                         await dlog(deploymentId, `Warning: GitHub webhook setup failed: ${e.message}`);
                     }
                 }
 
-                // first make build (userEmail used for GitHub private repo via connected account)
-                const [buildJobName, gitCommitHash, buildPromise] = await buildService.buildApp(deploymentId, app, forceBuild, userEmail);
+                // first make build
+                const [buildJobName, gitCommitHash, buildPromise] = await buildService.buildApp(deploymentId, app, forceBuild);
                 buildPromise.then(async () => {
                     console.log('Build job finished, deploying...');
                     dlog(deploymentId, `Starting deployment with output from build "${buildJobName}"`);

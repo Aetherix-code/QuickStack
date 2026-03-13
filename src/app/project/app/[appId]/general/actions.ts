@@ -16,6 +16,7 @@ export const saveGeneralAppSourceInfo = async (prevState: any, inputData: AppSou
         return saveFormAction(inputData, appSourceInfoGitZodModel, async (validatedData) => {
             await isAuthorizedWriteForApp(appId);
             const session = await getAuthUserSession();
+            const user = await userService.getUserByEmail(session.email);
             const existingApp = await appService.getById(appId);
 
             // If switching from CONTAINER to GIT or changing repo, cleanup old webhook
@@ -27,6 +28,7 @@ export const saveGeneralAppSourceInfo = async (prevState: any, inputData: AppSou
                 ...existingApp,
                 ...validatedData,
                 sourceType: 'GIT',
+                githubSourceUserId: user.id,
                 id: appId,
             });
 

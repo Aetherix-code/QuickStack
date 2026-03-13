@@ -1,6 +1,6 @@
 import * as z from "zod"
 
-import { CompleteProject, RelatedProjectModel, CompleteAppDomain, RelatedAppDomainModel, CompleteAppPort, RelatedAppPortModel, CompleteAppVolume, RelatedAppVolumeModel, CompleteAppFileMount, RelatedAppFileMountModel, CompleteAppBasicAuth, RelatedAppBasicAuthModel, CompleteRoleAppPermission, RelatedRoleAppPermissionModel } from "./index"
+import { CompleteProject, RelatedProjectModel, CompleteUser, RelatedUserModel, CompleteAppDomain, RelatedAppDomainModel, CompleteAppPort, RelatedAppPortModel, CompleteAppVolume, RelatedAppVolumeModel, CompleteAppFileMount, RelatedAppFileMountModel, CompleteAppBasicAuth, RelatedAppBasicAuthModel, CompleteRoleAppPermission, RelatedRoleAppPermissionModel } from "./index"
 
 export const AppModel = z.object({
   id: z.string(),
@@ -35,12 +35,14 @@ export const AppModel = z.object({
   useNetworkPolicy: z.boolean(),
   nodeAffinityType: z.string(),
   nodeAffinityLabelSelector: z.string(),
+  githubSourceUserId: z.string().nullish(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
 
 export interface CompleteApp extends z.infer<typeof AppModel> {
   project: CompleteProject
+  githubSourceUser?: CompleteUser | null
   appDomains: CompleteAppDomain[]
   appPorts: CompleteAppPort[]
   appVolumes: CompleteAppVolume[]
@@ -56,6 +58,7 @@ export interface CompleteApp extends z.infer<typeof AppModel> {
  */
 export const RelatedAppModel: z.ZodSchema<CompleteApp> = z.lazy(() => AppModel.extend({
   project: RelatedProjectModel,
+  githubSourceUser: RelatedUserModel.nullish(),
   appDomains: RelatedAppDomainModel.array(),
   appPorts: RelatedAppPortModel.array(),
   appVolumes: RelatedAppVolumeModel.array(),

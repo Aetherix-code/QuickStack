@@ -24,34 +24,31 @@ function isGitHubUrl(gitUrl: string): boolean {
     return /^https?:\/\/([^/]+@)?(github\.com|api\.github\.com)/.test(gitUrl) || gitUrl.includes('github.com');
 }
 
-async function resolveGitUrlWithUserToken(app: AppExtendedModel, userEmail?: string | null): Promise<string | undefined> {
-    console.log('[resolveGitUrlWithUserToken] userEmail:', userEmail);
-    console.log('[resolveGitUrlWithUserToken] app.gitUrl:', app.gitUrl);
-    console.log('[resolveGitUrlWithUserToken] isGitHubUrl:', isGitHubUrl(app.gitUrl || ''));
-    
-    if (!userEmail || !app.gitUrl || !isGitHubUrl(app.gitUrl)) {
-        console.log('[resolveGitUrlWithUserToken] Early return: missing userEmail, gitUrl, or not GitHub');
+async function resolveGitUrlWithUserToken(app: AppExtendedModel): Promise<string | undefined> {
+    if (!app.gitUrl || !isGitHubUrl(app.gitUrl)) {
         return undefined;
     }
-    const user = await userService.getUserByEmail(userEmail);
-    console.log('[resolveGitUrlWithUserToken] user.githubAccessToken exists:', !!user.githubAccessToken);
-    console.log('[resolveGitUrlWithUserToken] user.githubUsername:', user.githubUsername);
-    
-    if (!user.githubAccessToken) {
-        console.log('[resolveGitUrlWithUserToken] No GitHub token found for user');
+
+    // Look up user from app's githubSourceUserId
+    if (!app.githubSourceUserId) {
         return undefined;
     }
+
+    const user = await userService.getUserById(app.githubSourceUserId);
+    if (!user?.githubAccessToken) {
+        return undefined;
+    }
+
     const username = user.githubUsername || 'git';
     // Strip any existing auth from URL (e.g. https://user@github.com/...) then add token
     const base = app.gitUrl.replace(/^https?:\/\/[^/]*@/, 'https://');
     const resolvedUrl = base.replace(/^https?:\/\//, `https://${encodeURIComponent(username)}:${encodeURIComponent(user.githubAccessToken)}@`);
-    console.log('[resolveGitUrlWithUserToken] Resolved URL with token (redacted)');
     return resolvedUrl;
 }
 
 class BuildService {
 
-    async buildApp(deploymentId: string, app: AppExtendedModel, forceBuild: boolean = false, userEmail?: string | null): Promise<[string, string, Promise<void>]> {
+    async buildApp(deploymentId: string, app: AppExtendedModel, forceBuild: boolean = false): Promise<[string, string, Promise<void>]> {
         await namespaceService.createNamespaceIfNotExists(BUILD_NAMESPACE);
         const registryLocation = await paramService.getString(ParamService.REGISTRY_SOTRAGE_LOCATION, Constants.INTERNAL_REGISTRY_LOCATION);
         await registryService.deployRegistry(registryLocation!);
@@ -63,7 +60,7 @@ class BuildService {
         dlog(deploymentId, `Initialized app build...`);
         dlog(deploymentId, `Trying to clone repository...`);
 
-        const resolvedGitUrl = await resolveGitUrlWithUserToken(app, userEmail);
+        const resolvedGitUrl = await resolveGitUrlWithUserToken(app);
         if (resolvedGitUrl && isGitHubUrl(app.gitUrl!)) {
             await dlog(deploymentId, `Using connected GitHub account for private repo access.`);
         }

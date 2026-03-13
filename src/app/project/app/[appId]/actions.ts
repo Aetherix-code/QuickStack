@@ -9,8 +9,8 @@ import eventService from "@/server/services/event.service";
 
 export const deploy = async (appId: string, forceBuild = false) =>
     simpleAction(async () => {
-        const session = await isAuthorizedWriteForApp(appId);
-        await appService.buildAndDeploy(appId, forceBuild, session.email);
+        await isAuthorizedWriteForApp(appId);
+        await appService.buildAndDeploy(appId, forceBuild);
         return new SuccessActionResult(undefined, 'Successfully started deployment.');
     });
 

@@ -122,6 +122,9 @@ export class UserService {
                 id: true,
                 email: true,
                 userGroupId: true,
+                githubAccessToken: true,
+                githubUsername: true,
+                githubId: true,
                 createdAt: true,
                 updatedAt: true,
                 userGroup: true
@@ -141,6 +144,9 @@ export class UserService {
                 id: true,
                 email: true,
                 userGroupId: true,
+                githubAccessToken: true,
+                githubUsername: true,
+                githubId: true,
                 createdAt: true,
                 updatedAt: true,
                 userGroup: true

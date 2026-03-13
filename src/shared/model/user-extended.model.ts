@@ -6,6 +6,9 @@ export type UserExtended = {
     userGroup: UserGroup | null;
     userGroupId: string | null;
     email: string;
+    githubAccessToken: string | null;
+    githubUsername: string | null;
+    githubId: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
