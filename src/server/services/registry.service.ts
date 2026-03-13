@@ -224,7 +224,7 @@ class RegistryService {
                         containers: [
                             {
                                 name: deploymentName,
-                                image: 'registry:latest',
+                                image: 'registry:2',
                                 volumeMounts: [
                                     ...localStorageVolumeMount,
                                     {
