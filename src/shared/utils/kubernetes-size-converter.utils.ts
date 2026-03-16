@@ -61,7 +61,7 @@ export class KubeSizeConverter {
    */
     static fromKubeSizeToNanoCpu(kubernetesCpuMetric: string): number {
         // Regular expression to match the numeric part and optional "m" or "n" unit
-        const cpuRegex = /^([0-9]*\.?[0-9]+)(m|n?)?$/;
+        const cpuRegex = /^([0-9]*\.?[0-9]+)(m|u|n)?$/;
         const match = kubernetesCpuMetric.match(cpuRegex);
 
         if (!match) {
@@ -74,6 +74,8 @@ export class KubeSizeConverter {
         // Convert to nano CPUs
         if (unit === "m") {
             return value * 1_000_000;
+        } else if (unit === "u") {
+            return value * 1_000;  // micro-cores to nano-cores
         } else if (unit === "n") {
             return value;
         } else {
