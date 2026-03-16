@@ -143,7 +143,7 @@ class ClusterService {
 
         const metricsData: k8s.NodeMetricsList = await k3s.metrics.getNodeMetrics();
 
-        return await Promise.all(readyTopNodes.map(async (node) => {
+        const results = await Promise.all(readyTopNodes.map(async (node) => {
             const nodeMetrics = metricsData.items.filter((metric) => metric.metadata.name === node.Node.metadata?.name)
                 .map((metric) => {
                     return {
@@ -156,6 +156,12 @@ class ClusterService {
             // sorted by timestamp descending
             nodeMetrics.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
             const latestUsageItem = nodeMetrics[0];
+
+            // Skip nodes without metrics data
+            if (!latestUsageItem) {
+                console.warn(`No metrics available for node ${node.Node.metadata?.name}, skipping...`);
+                return null;
+            }
 
             const diskInfo = await longhornApiAdapter.getNodeStorageInfo(node.Node.metadata?.name!);
 
@@ -171,6 +177,9 @@ class ClusterService {
                 diskSpaceSchedulable: diskInfo.totalSchedulableStorage
             }
         }));
+
+        // Filter out null results (nodes without metrics)
+        return results.filter((result): result is NodeResourceModel => result !== null);
     }
 }
 
