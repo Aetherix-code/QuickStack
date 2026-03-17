@@ -14,7 +14,7 @@ QuickStack is a self-hosted PaaS solution designed to simplify the management of
 - **Horizontal Pod Autoscaling (HPA)** — Auto-scale app replicas based on resource usage
 - **Subdomain Routing** — Configure custom subdomains for apps
 - **Node Labels Management** — Assign and manage Kubernetes node labels from the UI and/or the setup scripts.
-- **App Node Affinity** — Target specific nodes for app deployment (None/Preferred/Required)
+- **App Node Affinity** — Target specific nodes for app deployment (None/Preferred/Required) with apps auto-balancing every 5 minutes
 - **Auto Builds** — Use Railpack to auto generate Docker files.
 - **Stale Node Auto-Cleanup** — Automatically detect and remove unresponsive cluster nodes
 - **Small bug fixes/improvements**
