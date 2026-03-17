@@ -68,6 +68,9 @@ async function initializeNextJs() {
     const staleNodeCleanupService = (await import('./server/services/standalone-services/stale-node-cleanup.service')).default;
     staleNodeCleanupService.configureCronJobs();
 
+    const nodeAffinityEnforcementService = (await import('./server/services/standalone-services/node-affinity-enforcement.service')).default;
+    nodeAffinityEnforcementService.configureCronJobs();
+
     const server = createServer((req, res) => {
         const parsedUrl = parse(req.url!, true)
         handle(req, res, parsedUrl)
