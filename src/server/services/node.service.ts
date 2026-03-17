@@ -163,7 +163,13 @@ class ClusterService {
                 return null;
             }
 
-            const diskInfo = await longhornApiAdapter.getNodeStorageInfo(node.Node.metadata?.name!);
+            let diskInfo;
+            try {
+                diskInfo = await longhornApiAdapter.getNodeStorageInfo(node.Node.metadata?.name!);
+            } catch (error) {
+                console.warn(`Failed to get storage info for node ${node.Node.metadata?.name}, skipping...`, error);
+                return null;
+            }
 
             return {
                 name: node.Node.metadata?.name!,
