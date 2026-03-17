@@ -14,6 +14,7 @@ import { getUserSession } from "@/server/utils/action-wrapper.utils";
 import { InputDialog } from "@/components/custom/input-dialog";
 import userGroupService from "@/server/services/user-group.service";
 import PodsStatusPollingProvider from "@/components/custom/pods-status-polling-provider";
+import { ThemeProvider } from "@/components/custom/theme-provider";
 
 const inter = localFont({
   src: "../../public/fonts/inter.woff2",
@@ -45,11 +46,12 @@ export default async function RootLayout({
   await userGroupService.createDefaultRolesIfNotExists();
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={cn(
         "min-h-screen bg-background font-sans antialiased",
         inter.variable
       )}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <SidebarProvider defaultOpen={defaultOpen}>
           <AppSidebar />
           <main className="flex w-full flex-col items-center">
@@ -68,6 +70,7 @@ export default async function RootLayout({
         <ConfirmDialog />
         <InputDialog />
         {userIsLoggedIn && <PodsStatusPollingProvider />}
+        </ThemeProvider>
       </body>
     </html>
   );

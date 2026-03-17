@@ -63,13 +63,13 @@ export default function NodeLabelsDialog({ children, nodeName, labels }: {
 
                     <div className="space-y-3 max-h-[300px] overflow-y-auto">
                         {labelEntries.length === 0 && (
-                            <p className="text-sm text-slate-500 text-center py-4">No custom labels on this node.</p>
+                            <p className="text-sm text-muted-foreground text-center py-4">No custom labels on this node.</p>
                         )}
                         {labelEntries.map(([key, value]) => (
                             <div key={key} className="flex items-center gap-2 text-sm">
-                                <span className="font-mono bg-slate-100 px-2 py-1 rounded flex-1 truncate">{key}</span>
-                                <span className="text-slate-400">=</span>
-                                <span className="font-mono bg-slate-100 px-2 py-1 rounded flex-1 truncate">{value || <span className="text-slate-400 italic">empty</span>}</span>
+                                <span className="font-mono bg-muted px-2 py-1 rounded flex-1 truncate">{key}</span>
+                                <span className="text-muted-foreground">=</span>
+                                <span className="font-mono bg-muted px-2 py-1 rounded flex-1 truncate">{value || <span className="text-muted-foreground italic">empty</span>}</span>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleRemove(key)}>
                                     <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
@@ -86,7 +86,7 @@ export default function NodeLabelsDialog({ children, nodeName, labels }: {
                                 onChange={(e) => setNewKey(e.target.value)}
                                 className="flex-1"
                             />
-                            <span className="text-slate-400">=</span>
+                            <span className="text-muted-foreground">=</span>
                             <Input
                                 placeholder="Value"
                                 value={newValue}

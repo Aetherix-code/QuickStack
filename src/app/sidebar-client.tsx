@@ -33,6 +33,7 @@ import { useEffect, useState } from "react"
 import QuickStackLogo from "@/components/custom/quickstack-logo"
 import { UserGroupUtils } from "@/shared/utils/role.utils"
 import { GithubReleaseInfo } from "@/server/adapter/github.adapter"
+import { ThemeSwitcher } from "@/components/custom/theme-switcher"
 
 export function SidebarCient({
   projects,
@@ -302,6 +303,10 @@ export function SidebarCient({
                     <span>Profile</span>
                   </DropdownMenuItem>
                 </Link>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+                  <span>Theme</span>
+                  <ThemeSwitcher />
+                </DropdownMenuItem>
                 <SidebarLogoutButton />
               </DropdownMenuContent>
             </DropdownMenu>

@@ -31,7 +31,7 @@ export function BreadcrumbsGenerator() {
     const { breadcrumbs } = useBreadcrumbs();
 
     return (<>
-        <div className="-ml-1 flex gap-4 items-center fixed w-full top-0 bg-white pt-6 pb-4 z-50">
+        <div className="-ml-1 flex gap-4 items-center fixed w-full top-0 bg-background pt-6 pb-4 z-50">
             <SidebarTrigger />
             <Separator orientation="vertical" className="mr-1 h-4" />
             {breadcrumbs && <Breadcrumb>
