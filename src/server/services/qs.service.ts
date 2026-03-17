@@ -305,6 +305,9 @@ class QuickStackService {
                             runAsGroup: 1001,
                             fsGroup: 1001
                         },
+                        nodeSelector: {
+                            'node-role.kubernetes.io/control-plane': 'true'
+                        },
                         affinity: {
                             nodeAffinity: {
                                 requiredDuringSchedulingIgnoredDuringExecution: {
@@ -313,8 +316,7 @@ class QuickStackService {
                                             matchExpressions: [
                                                 {
                                                     key: 'node-role.kubernetes.io/master',
-                                                    operator: 'In',
-                                                    values: ['true']
+                                                    operator: 'Exists'
                                                 }
                                             ]
                                         },
@@ -322,8 +324,7 @@ class QuickStackService {
                                             matchExpressions: [
                                                 {
                                                     key: 'node-role.kubernetes.io/control-plane',
-                                                    operator: 'In',
-                                                    values: ['true']
+                                                    operator: 'Exists'
                                                 }
                                             ]
                                         }
@@ -331,6 +332,18 @@ class QuickStackService {
                                 }
                             }
                         },
+                        tolerations: [
+                            {
+                                key: 'node-role.kubernetes.io/control-plane',
+                                operator: 'Exists',
+                                effect: 'NoSchedule'
+                            },
+                            {
+                                key: 'node-role.kubernetes.io/master',
+                                operator: 'Exists',
+                                effect: 'NoSchedule'
+                            }
+                        ],
                         containers: [
                             {
                                 name: this.QUICKSTACK_DEPLOYMENT_NAME,
