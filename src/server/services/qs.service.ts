@@ -305,6 +305,32 @@ class QuickStackService {
                             runAsGroup: 1001,
                             fsGroup: 1001
                         },
+                        affinity: {
+                            nodeAffinity: {
+                                requiredDuringSchedulingIgnoredDuringExecution: {
+                                    nodeSelectorTerms: [
+                                        {
+                                            matchExpressions: [
+                                                {
+                                                    key: 'node-role.kubernetes.io/master',
+                                                    operator: 'In',
+                                                    values: ['true']
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            matchExpressions: [
+                                                {
+                                                    key: 'node-role.kubernetes.io/control-plane',
+                                                    operator: 'In',
+                                                    values: ['true']
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
                         containers: [
                             {
                                 name: this.QUICKSTACK_DEPLOYMENT_NAME,
