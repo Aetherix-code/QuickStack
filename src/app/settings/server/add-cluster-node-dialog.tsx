@@ -13,7 +13,7 @@ export default function AddClusterNodeDialog({ children, clusterJoinToken }: { c
     const [command, setCommand] = useState<string>(``);
 
     useEffect(() => {
-        setCommand(`curl -sfL https://get.quickstack.dev/setup-worker.sh | K3S_URL=https://MASTER_IP:6443 JOIN_TOKEN=${clusterJoinToken ?? ''} sh -`);
+        setCommand(`curl -sfL https://raw.githubusercontent.com/Aetherix-code/QuickStack/refs/heads/main/setup/setup-worker.sh | K3S_URL=https://MASTER_IP:6443 JOIN_TOKEN=${clusterJoinToken ?? ''} sh -`);
     }, [clusterJoinToken]);
 
     return (
@@ -30,7 +30,9 @@ export default function AddClusterNodeDialog({ children, clusterJoinToken }: { c
                         </DialogDescription>
                     </DialogHeader>
 
-                    <Code>{command}</Code>
+                    <div className="overflow-x-auto">
+                        <Code>{command}</Code>
+                    </div>
 
                     <div><p className="font-semibold mt-2">Note:</p>
                         <ul className="list-disc list-inside text-xs text-slate-500">

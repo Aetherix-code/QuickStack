@@ -123,14 +123,14 @@ export default function NodeInfo({ nodeInfos, clusterJoinToken }: { nodeInfos: N
                                     <span className="font-semibold">Kubelet Version:</span> {nodeInfo.kubeletVersion}
                                 </div>
                             </div>
-                            {index !== 0 && <div className="flex px-4 pb-4 gap-4">
+                            {index !== 0 && <div className="flex flex-wrap px-4 pb-4 gap-4">
                                 <Button onClick={() => setNodeStatusClick(nodeInfo.name, !nodeInfo.schedulable)} variant="outline">{nodeInfo.schedulable ? 'Deactivate' : 'Activate'} Node</Button>
                                 <NodeLabelsDialog nodeName={nodeInfo.name} labels={nodeInfo.labels}>
                                     <Button variant="outline">Labels{Object.keys(nodeInfo.labels).length > 0 && ` (${Object.keys(nodeInfo.labels).length})`}</Button>
                                 </NodeLabelsDialog>
                                 <Button onClick={() => deleteNodeClick(nodeInfo.name)} variant="outline" className="text-destructive">Remove Node</Button>
                             </div>}
-                            {index === 0 && <div className="flex px-4 pb-4 gap-4">
+                            {index === 0 && <div className="flex flex-wrap px-4 pb-4 gap-4">
                                 <NodeLabelsDialog nodeName={nodeInfo.name} labels={nodeInfo.labels}>
                                     <Button variant="outline">Labels{Object.keys(nodeInfo.labels).length > 0 && ` (${Object.keys(nodeInfo.labels).length})`}</Button>
                                 </NodeLabelsDialog>
