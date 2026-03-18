@@ -178,11 +178,8 @@ class BuildService {
             'apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates',
             'ARCH=$(uname -m)',
             'case "$ARCH" in aarch64|arm64) ARCH="arm64";; x86_64|amd64) ARCH="x86_64";; esac',
-            // Download railpack and git clone in parallel — both are pure network I/O, independent of each other
-            `curl -sL "https://github.com/railwayapp/railpack/releases/download/${railpackVersion}/railpack-${railpackVersion}-\${ARCH}-unknown-linux-musl.tar.gz" | tar xz -C /usr/local/bin & RAILPACK_PID=$!`,
-            `git clone --depth 1 --single-branch --branch "$GIT_BRANCH" "$GIT_URL" /workspace/repo & CLONE_PID=$!`,
-            'wait $RAILPACK_PID || exit 1',
-            'wait $CLONE_PID',
+            `curl -sL "https://github.com/railwayapp/railpack/releases/download/${railpackVersion}/railpack-${railpackVersion}-\${ARCH}-unknown-linux-musl.tar.gz" | tar xz -C /usr/local/bin`,
+            'git clone --depth 1 --single-branch --branch "$GIT_BRANCH" "$GIT_URL" /workspace/repo',
             `cd ${contextPath}`,
             'railpack prepare . --plan-out railpack-plan.json',
         ].join(' && ');
