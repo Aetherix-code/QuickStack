@@ -172,11 +172,10 @@ class BuildService {
 
         const contextPath = contextSubdir ? `/workspace/repo/${contextSubdir}` : '/workspace/repo';
 
-        // Clone repo and run railpack prepare to generate plan
+        // Clone repo and run railpack prepare to generate plan (using Debian for mise compatibility)
         const initScript = [
             'set -e',
-            'apk add --no-cache git curl ca-certificates',
-
+            'apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates',
             'ARCH=$(uname -m)',
             'case "$ARCH" in aarch64|arm64) ARCH="arm64";; x86_64|amd64) ARCH="x86_64";; esac',
             `curl -sL "https://github.com/railwayapp/railpack/releases/download/${railpackVersion}/railpack-${railpackVersion}-\${ARCH}-unknown-linux-musl.tar.gz" | tar xz -C /usr/local/bin`,
@@ -218,8 +217,8 @@ class BuildService {
                         initContainers: [
                             {
                                 name: `${buildName}-clone`,
-                                image: "alpine:3",
-                                command: ["/bin/sh", "-c", initScript],
+                                image: "debian:12-slim",
+                                command: ["/bin/bash", "-c", initScript],
                                 env: [
                                     { name: "GIT_URL", value: gitUrl },
                                     { name: "GIT_BRANCH", value: branch },
