@@ -33,6 +33,8 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Activity, Cpu, HardDrive, MemoryStick } from 'lucide-react';
+import NodeAppsList from '@/components/custom/node-apps-list';
+import { getAllProjectsWithAppsAndPods } from './actions';
 
 export default function ResourcesNodes({
   resourcesNodes,
@@ -502,6 +504,9 @@ function NodeDetailsSheet({ node }: { node: NodeResourceModel }) {
               <ChartDiskRessources nodeRessource={node} />
             </CardContent>
           </Card>
+
+          {/* Apps running on this node */}
+          <NodeAppsList nodeName={node.name} getAllAppsWithPods={getAllProjectsWithAppsAndPods} />
         </div>
       </SheetContent>
     </Sheet>

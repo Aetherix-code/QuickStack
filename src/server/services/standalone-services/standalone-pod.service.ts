@@ -61,6 +61,7 @@ class SetupPodService {
         containerName: string;
         uid?: string;
         status?: string;
+        nodeName?: string;
     }[]> {
         const res = await k3s.core.listNamespacedPod(projectId, undefined, undefined, undefined, undefined, `app=${appId}`);
         return res.body.items.map((item) => ({
@@ -68,6 +69,7 @@ class SetupPodService {
             containerName: item.spec?.containers?.[0].name!,
             uid: item.metadata?.uid,
             status: item.status?.phase,
+            nodeName: item.spec?.nodeName,
         })).filter((item) => !!item.podName && !!item.containerName);
     }
 

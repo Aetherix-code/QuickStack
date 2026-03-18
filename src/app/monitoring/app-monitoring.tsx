@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button';
 import { AppMonitoringUsageModel } from '@/shared/model/app-monitoring-usage.model';
 import PodStatusIndicator from '@/components/custom/pod-status-indicator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import AppNodesDisplay from '@/components/custom/app-nodes-display';
+import { getPodsForApp } from '../project/app/[appId]/overview/actions';
 
 export default function AppRessourceMonitoring({
     appsRessourceUsage
@@ -73,6 +75,7 @@ export default function AppRessourceMonitoring({
                             <TableHead>App</TableHead>
                             <TableHead>CPU</TableHead>
                             <TableHead>RAM</TableHead>
+                            <TableHead>Nodes</TableHead>
                             <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -97,6 +100,9 @@ export default function AppRessourceMonitoring({
                                     </TooltipProvider>
                                 </TableCell>
                                 <TableCell>{KubeSizeConverter.convertBytesToReadableSize(item.ramUsageBytes)}</TableCell>
+                                <TableCell>
+                                    <AppNodesDisplay appId={item.appId} getPodsForApp={getPodsForApp} />
+                                </TableCell>
                                 <TableCell>
                                     <Link href={`/project/app/${item.appId}`} >
                                         <Button variant="ghost" size="sm">

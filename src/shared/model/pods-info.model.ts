@@ -5,6 +5,7 @@ export const podsInfoZodModel = z.object({
     containerName: z.string(),
     uid: z.string().optional(),
     status: z.string().optional(),
+    nodeName: z.string().optional(),
 });
 
 export type PodsInfoModel = z.infer<typeof podsInfoZodModel>;

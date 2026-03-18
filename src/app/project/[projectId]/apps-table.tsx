@@ -16,6 +16,8 @@ import { EditAppDialog } from "./edit-app-dialog";
 import { UserSession } from "@/shared/model/sim-session.model";
 import { UserGroupUtils } from "@/shared/utils/role.utils";
 import PodStatusIndicator from "@/components/custom/pod-status-indicator";
+import AppNodesDisplay from "@/components/custom/app-nodes-display";
+import { getPodsForApp } from "../app/[appId]/overview/actions";
 
 
 export default function AppTable({
@@ -43,6 +45,7 @@ export default function AppTable({
             ["createdAt", "Created At", true, (item) => formatDateTime(item.createdAt)],
             ["updatedAt", "Updated At", false, (item) => formatDateTime(item.updatedAt)],
             ['status', 'Status', true, (item) => <PodStatusIndicator appId={item.id} />],
+            ['nodes', 'Nodes', true, (item) => <AppNodesDisplay appId={item.id} getPodsForApp={getPodsForApp} />],
         ]}
             data={app}
             onItemClickLink={(item) => `/project/app/${item.id}`}
