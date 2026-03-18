@@ -58,7 +58,6 @@ class BuildService {
         }
 
         dlog(deploymentId, `Initialized app build...`);
-        dlog(deploymentId, `Trying to clone repository...`);
 
         const resolvedGitUrl = await resolveGitUrlWithUserToken(app);
         if (resolvedGitUrl && isGitHubUrl(app.gitUrl!)) {
@@ -67,14 +66,8 @@ class BuildService {
 
         // Check if last build is already up to date with data in git repo
         const latestSuccessfulBuld = buildsForApp.find(x => x.status === 'SUCCEEDED');
-        const latestRemoteGitHash = app.buildMethod === 'AUTO'
-            ? await gitService.getRemoteCommitHash(app, app.gitBranch ?? 'main', resolvedGitUrl)
-            : await gitService.openGitContext(app, async (ctx) => {
-                await ctx.checkIfDockerfileExists();
-                return await ctx.getLatestRemoteCommitHash();
-            }, resolvedGitUrl);
+        const latestRemoteGitHash = await gitService.getRemoteCommitHash(app, app.gitBranch ?? 'main', resolvedGitUrl);
 
-        dlog(deploymentId, `Cloned repository successfully`);
         dlog(deploymentId, `Latest remote git hash: ${latestRemoteGitHash}`);
 
         if (!forceBuild && latestSuccessfulBuld?.gitCommit && latestRemoteGitHash &&
@@ -179,10 +172,11 @@ class BuildService {
 
         const contextPath = contextSubdir ? `/workspace/repo/${contextSubdir}` : '/workspace/repo';
 
-        // Clone repo and run railpack prepare to generate plan (using Debian for mise compatibility)
+        // Clone repo and run railpack prepare to generate plan
         const initScript = [
             'set -e',
-            'apt-get update && apt-get install -y git curl ca-certificates',
+            'apk add --no-cache git curl ca-certificates',
+
             'ARCH=$(uname -m)',
             'case "$ARCH" in aarch64|arm64) ARCH="arm64";; x86_64|amd64) ARCH="x86_64";; esac',
             `curl -sL "https://github.com/railwayapp/railpack/releases/download/${railpackVersion}/railpack-${railpackVersion}-\${ARCH}-unknown-linux-musl.tar.gz" | tar xz -C /usr/local/bin`,
@@ -224,8 +218,8 @@ class BuildService {
                         initContainers: [
                             {
                                 name: `${buildName}-clone`,
-                                image: "debian:12-slim",
-                                command: ["/bin/bash", "-c", initScript],
+                                image: "alpine:3",
+                                command: ["/bin/sh", "-c", initScript],
                                 env: [
                                     { name: "GIT_URL", value: gitUrl },
                                     { name: "GIT_BRANCH", value: branch },
@@ -256,9 +250,6 @@ class BuildService {
 
         const pod = await this.getPodForJob(buildName);
         await podService.waitUntilPodIsRunningFailedOrSucceded(BUILD_NAMESPACE, pod.podName);
-
-        // Extra delay so the main container log endpoint is ready (pods with init containers can race)
-        await new Promise(resolve => setTimeout(resolve, 5000));
 
         const maxLogRetries = 10;
         const logRetryDelayMs = 5000;
