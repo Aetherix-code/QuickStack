@@ -58,7 +58,7 @@ export default function EnvEdit({ app, readonly }: {
                                 <FormItem>
                                     <FormLabel>Env Variables</FormLabel>
                                     <FormControl>
-                                        <Textarea className="h-96" placeholder="NAME=VALUE..." {...field} value={field.value} />
+                                        <Textarea className="h-96 font-mono text-sm" placeholder="NAME=VALUE..." {...field} value={field.value} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
