@@ -3,6 +3,7 @@
 import { NodeInfoModel } from "@/shared/model/node-info.model";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Code } from "@/components/custom/code";
+import { KubeSizeConverter } from "@/shared/utils/kubernetes-size-converter.utils";
 import { Toast } from "@/frontend/utils/toast.utils";
 import { Button } from "@/components/ui/button";
 import { useBreadcrumbs, useConfirmDialog } from "@/frontend/states/zustand.states";
@@ -115,7 +116,7 @@ export default function NodeInfo({ nodeInfos, clusterJoinToken }: { nodeInfos: N
                                 </div>
                                 <div className="text-xs text-slate-500 pt-2">
                                     <span className="font-semibold">Master Node:</span> {nodeInfo.isMasterNode ? 'Yes' : 'No'}<br />
-                                    <span className="font-semibold">Spec:</span> {nodeInfo.cpuCapacity} CPU Cores, {nodeInfo.ramCapacity} Memory<br />
+                                    <span className="font-semibold">Spec:</span> {nodeInfo.cpuCapacity} CPU Cores, {KubeSizeConverter.convertBytesToReadableSize(KubeSizeConverter.fromKubeSizeToBytes(nodeInfo.ramCapacity))} Memory<br />
                                     <span className="font-semibold">OS:</span> {nodeInfo.os} | {nodeInfo.architecture}<br />
                                     <span className="font-semibold">Kernel Version:</span> {nodeInfo.kernelVersion}<br />
                                     <span className="font-semibold">Container Runtime Version:</span> {nodeInfo.containerRuntimeVersion}<br />
