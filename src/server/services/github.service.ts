@@ -22,25 +22,53 @@ class GitHubService {
     async getUserRepos(accessToken: string): Promise<GitHubRepo[]> {
         const octokit = new Octokit({ auth: accessToken });
 
-        const { data } = await octokit.repos.listForAuthenticatedUser({
-            sort: 'updated',
-            per_page: 100,
-            affiliation: 'owner,collaborator,organization_member'
-        });
+        // Fetch all pages of repositories
+        const allRepos: GitHubRepo[] = [];
+        let page = 1;
+        let hasMore = true;
 
-        return data as GitHubRepo[];
+        while (hasMore) {
+            const { data } = await octokit.repos.listForAuthenticatedUser({
+                sort: 'updated',
+                per_page: 100,
+                page: page,
+                affiliation: 'owner,collaborator,organization_member'
+            });
+
+            allRepos.push(...(data as GitHubRepo[]));
+
+            // If we got less than 100 results, we've reached the last page
+            hasMore = data.length === 100;
+            page++;
+        }
+
+        return allRepos;
     }
 
     async getRepoBranches(accessToken: string, owner: string, repo: string): Promise<GitHubBranch[]> {
         const octokit = new Octokit({ auth: accessToken });
 
-        const { data } = await octokit.repos.listBranches({
-            owner,
-            repo,
-            per_page: 100
-        });
+        // Fetch all pages of branches
+        const allBranches: GitHubBranch[] = [];
+        let page = 1;
+        let hasMore = true;
 
-        return data as GitHubBranch[];
+        while (hasMore) {
+            const { data } = await octokit.repos.listBranches({
+                owner,
+                repo,
+                per_page: 100,
+                page: page
+            });
+
+            allBranches.push(...(data as GitHubBranch[]));
+
+            // If we got less than 100 results, we've reached the last page
+            hasMore = data.length === 100;
+            page++;
+        }
+
+        return allBranches;
     }
 
     async createWebhook(accessToken: string, owner: string, repo: string, webhookUrl: string): Promise<number> {
@@ -74,12 +102,27 @@ class GitHubService {
     async getWebhooks(accessToken: string, owner: string, repo: string): Promise<any[]> {
         const octokit = new Octokit({ auth: accessToken });
 
-        const { data } = await octokit.repos.listWebhooks({
-            owner,
-            repo
-        });
+        // Fetch all pages of webhooks
+        const allWebhooks: any[] = [];
+        let page = 1;
+        let hasMore = true;
 
-        return data;
+        while (hasMore) {
+            const { data } = await octokit.repos.listWebhooks({
+                owner,
+                repo,
+                per_page: 100,
+                page: page
+            });
+
+            allWebhooks.push(...data);
+
+            // If we got less than 100 results, we've reached the last page
+            hasMore = data.length === 100;
+            page++;
+        }
+
+        return allWebhooks;
     }
 
     parseRepoUrl(repoUrl: string): { owner: string; repo: string } | null {
