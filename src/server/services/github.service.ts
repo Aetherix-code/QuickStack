@@ -22,27 +22,35 @@ class GitHubService {
     async getUserRepos(accessToken: string): Promise<GitHubRepo[]> {
         const octokit = new Octokit({ auth: accessToken });
 
-        // Fetch all pages of repositories
-        const allRepos: GitHubRepo[] = [];
-        let page = 1;
-        let hasMore = true;
+        // Fetch repos the user has direct access to
+        const userRepos = await octokit.paginate(octokit.repos.listForAuthenticatedUser, {
+            sort: 'updated',
+            per_page: 100,
+            affiliation: 'owner,collaborator,organization_member'
+        });
 
-        while (hasMore) {
-            const { data } = await octokit.repos.listForAuthenticatedUser({
-                sort: 'updated',
-                per_page: 100,
-                page: page,
-                affiliation: 'owner,collaborator,organization_member'
-            });
+        // Also fetch repos from each org the user belongs to
+        const orgs = await octokit.paginate(octokit.orgs.listForAuthenticatedUser, {
+            per_page: 100,
+        });
 
-            allRepos.push(...(data as GitHubRepo[]));
+        const orgRepos = (await Promise.all(
+            orgs.map(org =>
+                octokit.paginate(octokit.repos.listForOrg, {
+                    org: org.login,
+                    per_page: 100,
+                    sort: 'updated',
+                }).catch(() => []) // Skip orgs where access is denied
+            )
+        )).flat();
 
-            // If we got less than 100 results, we've reached the last page
-            hasMore = data.length === 100;
-            page++;
+        // Deduplicate by repo id
+        const repoMap = new Map<number, GitHubRepo>();
+        for (const repo of [...userRepos, ...orgRepos]) {
+            repoMap.set(repo.id, repo as GitHubRepo);
         }
 
-        return allRepos;
+        return Array.from(repoMap.values());
     }
 
     async getRepoBranches(accessToken: string, owner: string, repo: string): Promise<GitHubBranch[]> {
