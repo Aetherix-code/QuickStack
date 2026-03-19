@@ -9,7 +9,7 @@ import {
 import { TerminalSetupInfoModel } from "@/shared/model/terminal-setup-info.model";
 import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
-import { podTerminalSocket } from "@/frontend/sockets/sockets";
+import { getPodTerminalSocket } from "@/frontend/sockets/sockets";
 import { StreamUtils } from "@/shared/utils/stream.utils";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +28,10 @@ export default function TerminalStreamed({
         if (!terminalInfo || !terminalWindow || !terminalWindow.current) {
             return;
         }
+
+        // Only create socket when actually starting a terminal session
+        const podTerminalSocket = getPodTerminalSocket();
+
         const terminalSessionKey = `${terminalInfo.namespace}-${terminalInfo.podName}-${terminalInfo.containerName}-${terminalType}-${new Date().getTime()}`;
         const termInfo = {
             ...terminalInfo,
@@ -56,10 +60,24 @@ export default function TerminalStreamed({
     const disconnectTerminalSession = () => {
         terminal?.dispose();
         if (sessionTerminalInfo) {
+            const podTerminalSocket = getPodTerminalSocket();
+            const terminalOutputKey = StreamUtils.getOutputStreamName(sessionTerminalInfo);
+
+            // Remove event listener to prevent memory leaks
+            podTerminalSocket.off(terminalOutputKey);
             podTerminalSocket.emit('closeTerminal', sessionTerminalInfo);
             setSessionTerminalInfo(undefined);
         }
     }
+
+    // Cleanup on component unmount
+    useEffect(() => {
+        return () => {
+            if (sessionTerminalInfo) {
+                disconnectTerminalSession();
+            }
+        };
+    }, [sessionTerminalInfo]);
 
 
     return <>
