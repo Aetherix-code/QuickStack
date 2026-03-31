@@ -76,13 +76,7 @@ sudo systemctl disable rpcbind.service rpcbind.socket
 # Build node label flags from NODE_LABELS env var (comma-separated key=value pairs)
 NODE_LABEL_FLAGS=""
 if [ -n "${NODE_LABELS}" ]; then
-    IFS=',' read -ra LABELS <<< "${NODE_LABELS}"
-    for label in "${LABELS[@]}"; do
-        label=$(echo "$label" | xargs) # trim whitespace
-        if [ -n "$label" ]; then
-            NODE_LABEL_FLAGS="${NODE_LABEL_FLAGS} --node-label ${label}"
-        fi
-    done
+    NODE_LABEL_FLAGS=$(echo "${NODE_LABELS}" | tr ',' '\n' | xargs -I{} printf " --node-label {}")
     echo "Applying node labels: ${NODE_LABELS}"
 fi
 
